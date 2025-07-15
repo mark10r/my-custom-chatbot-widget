@@ -1,0 +1,5 @@
+# Node modules
+/node_modules
+
+# Vite production build output
+/dist
