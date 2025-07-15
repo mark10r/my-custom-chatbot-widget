@@ -1,12 +1,12 @@
 // src/ChatWidget.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import './ChatWidget.css';
+import './ChatWidget.css'; // Assuming your CSS is here
 
-// (Keep your ChatTheme and ChatWidgetProps interfaces here as before)
+// Define the interfaces for your props (matching App.tsx's ChatbotConfig.theme)
 interface ChatTheme {
   primaryColor: string;
-  buttonPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  buttonPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'; // Matching string literal types
   welcomeMessage: string;
   customIconUrl: string;
   headerTitle: string;
@@ -17,8 +17,8 @@ interface ChatTheme {
 
 interface ChatWidgetProps {
   n8nWebhookUrl: string;
-  theme: ChatTheme;
-  clientId: string; // This is the client account ID
+  theme: ChatTheme; // Use the ChatTheme interface
+  clientId: string;
 }
 
 
@@ -29,17 +29,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // --- NEW: State for sessionId ---
+  // Session ID logic (this was the last successful addition)
   const [sessionId, setSessionId] = useState<string | null>(null);
-
-  // --- NEW: Generate sessionId on initial load or when chat opens for the first time ---
   useEffect(() => {
     if (!sessionId) {
-      // Generate a simple unique ID (e.g., using current time + random number)
-      // For a more robust solution, consider a library like 'uuid'
       setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
     }
-  }, [sessionId]); // Run once to set the session ID
+  }, [sessionId]);
 
 
   // Scroll to the latest message
@@ -59,7 +55,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
   };
 
   const handleSendMessage = async () => {
-    if (input.trim() === '' || !sessionId) return; // Ensure sessionId exists
+    if (input.trim() === '' || !sessionId) return;
 
     const userMessage = input.trim();
     setMessages((prevMessages) => [...prevMessages, { type: 'user', text: userMessage }]);
@@ -75,7 +71,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
         body: JSON.stringify({
           chatInput: userMessage,
           clientId: clientId,
-          sessionId: sessionId // --- NEW: Include sessionId here ---
+          sessionId: sessionId
         }),
       });
 
@@ -105,6 +101,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
 
   return (
     <div className={`chat-widget-container ${theme.buttonPosition}`}>
+      {/* Chat Bubble Button */}
       <button
         className="chat-bubble-button"
         onClick={toggleChat}
@@ -113,8 +110,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
         <img src={theme.customIconUrl} alt="Chat Icon" className="chat-icon" />
       </button>
 
-      {isOpen && (
-        <div className="chat-window" style={{ borderColor: theme.primaryColor }}>
+      {/* Chat Window */}
+        <div className={`chat-window ${isOpen ? 'is-open' : 'is-closed'}`} style={{ borderColor: theme.primaryColor }}>
           <div className="chat-header" style={{ backgroundColor: theme.primaryColor }}>
             <h3>{theme.headerTitle}</h3>
             <button className="close-button" onClick={toggleChat}>
@@ -156,8 +153,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
               Send
             </button>
           </div>
-        </div>
-      )}
+        </div> {/* This closing div tag for chat-window should be here */}
     </div>
   );
 };

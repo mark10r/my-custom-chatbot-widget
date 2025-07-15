@@ -1,11 +1,11 @@
-/* src/ChatWidget.css - Ensure these styles are present and configured correctly */
+/* src/ChatWidget.css */
 
 .chat-widget-container {
     position: fixed;
     z-index: 1000;
 }
 
-/* Position the button based on theme.buttonPosition */
+/* Position the button */
 .chat-widget-container.bottom-right {
     bottom: 20px;
     right: 20px;
@@ -23,7 +23,6 @@
     left: 20px;
 }
 
-
 .chat-bubble-button {
     border: none;
     border-radius: 50%;
@@ -33,7 +32,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 8px rgba(12, 12, 12, 0.2);
     transition: transform 0.2s ease-in-out;
     color: white; /* For icon if it's text */
 }
@@ -59,32 +58,63 @@
     flex-direction: column;
     overflow: hidden;
     border: 2px solid; /* For primaryColor border */
+
+    /* Animation properties: START STATE for the animation */
+    transform: scale(0.9); /* Start slightly scaled down */
+    opacity: 0;           /* Start fully transparent */
+    pointer-events: none; /* Disable interaction when closed */
+    visibility: hidden;   /* Hidden but still allows transition */
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out, visibility 0.3s; /* Smooth transition for all properties */
+
+    /* Default position, will be overridden by position-specific classes below */
+    bottom: 90px;
+    right: 20px;
 }
 
-/* Position the chat window relative to the button position */
+/* Position and transform-origin for different button positions */
 .chat-widget-container.bottom-right .chat-window {
     right: 20px;
     bottom: 90px;
+    transform-origin: bottom right; /* Animation originates from bottom right */
 }
 
 .chat-widget-container.bottom-left .chat-window {
     left: 20px;
     bottom: 90px;
+    transform-origin: bottom left; /* Animation originates from bottom left */
 }
 
 .chat-widget-container.top-right .chat-window {
     right: 20px;
     top: 90px;
+    transform-origin: top right; /* Animation originates from top right */
 }
 
 .chat-widget-container.top-left .chat-window {
     left: 20px;
     top: 90px;
+    transform-origin: top left; /* Animation originates from top left */
+}
+
+/* State when chat window is OPEN: END STATE for the animation */
+.chat-window.is-open {
+    transform: scale(1); /* Scale to full size */
+    opacity: 1;         /* Become fully opaque */
+    pointer-events: auto; /* Enable interaction when open */
+    visibility: visible;  /* Make visible */
+}
+
+/* State when chat window is CLOSED (inherits from .chat-window's defaults) */
+/* This class exists for semantic clarity but typically doesn't need extra styles beyond .chat-window's default */
+.chat-window.is-closed {
+    /* You can put specific 'closed' styles here if they differ from .chat-window defaults */
 }
 
 
 .chat-header {
-    padding: 15px;
+    padding: 20px;
+    margin-top: -15px;
+    margin-bottom: -15px;
     color: white;
     display: flex;
     justify-content: space-between;
@@ -133,6 +163,7 @@
     max-width: 80%;
     word-wrap: break-word;
     line-height: 1.4;
+    font-size: 15px;
 }
 
 .message.user .message-bubble {
