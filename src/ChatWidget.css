@@ -23,6 +23,60 @@
     left: 20px;
 }
 
+.mini-welcome-bubble {
+    position: absolute;
+    padding: 8px 12px;
+    border-radius: 10px; /* Rounded corners for the bubble */
+    font-size: 0.9em;
+    font-weight: bold;
+    min-width: 200px;
+    max-width: 300px; /* Limit width */
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 999; /* Below the main chat window, above the button */
+
+    /* Positioning relative to the chat-bubble-button */
+    /* Default for bottom-right button */
+    bottom: 60px; /* Above the main button */
+    right: 30px; /* To the left of the main button */
+
+    opacity: 0; /* Start hidden for fade-in animation */
+    transform: translateY(10px); /* Start slightly below for pop-up effect */
+    animation: fadeInPopUp 0.5s ease-out forwards; /* Apply animation */
+    animation-delay: 0.5s; /* Delay the animation slightly after component mounts */
+}
+
+/* Adjust mini bubble position based on main button position */
+.chat-widget-container.bottom-right .mini-welcome-bubble {
+    bottom: 60px;
+    right: 60px;
+}
+.chat-widget-container.bottom-left .mini-welcome-bubble {
+    bottom: 60px;
+    left: 60px;
+}
+.chat-widget-container.top-right .mini-welcome-bubble {
+    top: 60px;
+    right: 60px;
+}
+.chat-widget-container.top-left .mini-welcome-bubble {
+    top: 60px;
+    left: 60px;
+}
+
+/* Animation for the mini bubble */
+@keyframes fadeInPopUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .chat-bubble-button {
     border: none;
     border-radius: 50%;
@@ -112,20 +166,35 @@
 
 
 .chat-header {
-    padding: 20px;
-    margin-top: -15px;
-    margin-bottom: -15px;
-    color: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: bold;
-    flex-shrink: 0;
+  padding: 20px;
+  margin-top: -15px;
+  margin-bottom: -15px;
+  color: white;
+  display: flex; /* Use flexbox to align items horizontally */
+  align-items: center; /* Vertically center items in the header */
+  justify-content: space-between; /* Space between avatar/title and close button */
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.header-avatar {
+    width: 35px; /* Fixed width */
+    height: 35px; /* Fixed height */
+    border-radius: 50%; /* Makes the image perfectly round */
+    margin-right: 10px; /* Space between the avatar and the header title */
+    object-fit: cover; /* Ensures the image covers the area without distortion */
+    flex-shrink: 0; /* Prevent it from shrinking */
+    /* Optional: If your icon is dark and needs to be white on a dark header */
+    /* filter: brightness(0) invert(1); */
 }
 
 .chat-header h3 {
     margin: 0;
     font-size: 1.1em;
+    flex-grow: 1; /* Allows the title to take up remaining space */
+    white-space: nowrap; /* Prevent title from wrapping if it's too long */
+    overflow: hidden; /* Hide overflow if title is too long */
+    text-overflow: ellipsis; /* Add ellipsis if title is truncated */
 }
 
 .close-button {

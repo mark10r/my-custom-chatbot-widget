@@ -6,13 +6,23 @@ import './ChatWidget.css'; // Assuming your CSS is here
 // Define the interfaces for your props (matching App.tsx's ChatbotConfig.theme)
 interface ChatTheme {
   primaryColor: string;
-  buttonPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'; // Matching string literal types
+  buttonPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
   welcomeMessage: string;
   customIconUrl: string;
   headerTitle: string;
+  headerIconUrl: string;
   userBubbleColor: string;
   botBubbleColor: string;
   inputPlaceholder: string;
+  // --- NEW PROPERTIES FOR AUTO-OPEN ---
+  openAfterDelay?: boolean;
+  openDelaySeconds?: number;
+  openOnScroll?: boolean;
+  openOnScrollThreshold?: number;
+  showWelcomeBubble?: boolean;
+  welcomeBubbleColor?: string;
+  welcomeBubbleTextColor?: string;
+  welcomeBubbleDelaySeconds?: number;
 }
 
 interface ChatWidgetProps {
@@ -31,6 +41,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
 
   // Session ID logic (this was the last successful addition)
   const [sessionId, setSessionId] = useState<string | null>(null);
+    // --- NEW: Ref to track if auto-open has already occurred ---
+  const autoOpenTriggeredRef = useRef(false);
+  // --- NEW: State and Ref for Mini Welcome Bubble ---
+  const [showMiniBubble, setShowMiniBubble] = useState(false);
+  const miniBubbleTriggeredRef = useRef(false); // To ensure mini bubble only appears once
+
   useEffect(() => {
     if (!sessionId) {
       setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
@@ -50,8 +66,80 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
     }
   }, [isOpen, messages.length, theme.welcomeMessage]);
 
+  // --- NEW EFFECT: Auto-open after a delay ---
+ useEffect(() => {
+ // Only proceed if delay auto-open is enabled, a delay is specified,
+// the widget is currently closed, and it hasn't been auto-opened yet.
+if (theme.openAfterDelay && theme.openDelaySeconds !== undefined && !isOpen && !autoOpenTriggeredRef.current) {
+const timer = setTimeout(() => {
+setIsOpen(true);
+autoOpenTriggeredRef.current = true; // Mark as triggered for this session
+}, theme.openDelaySeconds * 1000); // Convert seconds to milliseconds
+
+// Cleanup function: Clear the timer if the component unmounts
+ // or if dependencies change (e.g., if `isOpen` becomes true manually)
+return () => clearTimeout(timer);
+}
+}, [theme.openAfterDelay, theme.openDelaySeconds, isOpen]); // Re-run if these theme props or isOpen state changes
+
+// --- NEW EFFECT: Mini Welcome Bubble Auto-display ---
+useEffect(() => {
+// Only show if enabled, not already triggered, and main chat is closed
+if (theme.showWelcomeBubble && !miniBubbleTriggeredRef.current && !isOpen) {
+const delay = theme.welcomeBubbleDelaySeconds !== undefined ? theme.welcomeBubbleDelaySeconds : 1; // Default to 1 second if not set
+const timer = setTimeout(() => {
+setShowMiniBubble(true);
+miniBubbleTriggeredRef.current = true; // Mark as triggered
+}, delay * 1000);
+
+return () => clearTimeout(timer);
+}
+// Hide mini bubble if main chat opens
+if (isOpen && showMiniBubble) {
+setShowMiniBubble(false);
+}
+}, [theme.showWelcomeBubble, theme.welcomeBubbleDelaySeconds, isOpen, showMiniBubble]); // Depend on isOpen to hide it
+
+// --- NEW EFFECT: Auto-open on scroll threshold ---
+useEffect(() => {
+// Only proceed if scroll auto-open is enabled, a threshold is specified,
+// the widget is currently closed, and it hasn't been auto-opened yet.
+if (theme.openOnScroll && theme.openOnScrollThreshold !== undefined && !isOpen && !autoOpenTriggeredRef.current) {
+const handleScroll = () => {
+// Calculate scroll percentage
+const scrollHeight = document.documentElement.scrollHeight; // Total height of the scrollable content
+const clientHeight = document.documentElement.clientHeight; // Height of the viewport
+const scrollTop = window.scrollY; // Current scroll position from the top
+
+// Avoid division by zero if the content is not scrollable
+const totalScrollableHeight = scrollHeight - clientHeight;
+if (totalScrollableHeight <= 0) return;
+
+const scrollPercentage = (scrollTop / totalScrollableHeight) * 100;
+
+// If scroll threshold is met/exceeded and not yet triggered
+if (scrollPercentage >= (theme.openOnScrollThreshold || 0) && !autoOpenTriggeredRef.current) {
+setIsOpen(true);
+autoOpenTriggeredRef.current = true; // Mark as triggered
+window.removeEventListener('scroll', handleScroll); // Remove listener once triggered to prevent re-triggering
+}
+};
+
+// Add the scroll event listener when the component mounts or dependencies change
+window.addEventListener('scroll', handleScroll);
+
+// Cleanup function: Remove the event listener when the component unmounts
+return () => {
+window.removeEventListener('scroll', handleScroll);
+};
+}
+}, [theme.openOnScroll, theme.openOnScrollThreshold, isOpen]); // Re-run if these theme props or isOpen state changes
+
   const toggleChat = () => {
     setIsOpen(!isOpen);
+    if (!isOpen) { // If it's about to open
+      setShowMiniBubble(false);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -101,6 +189,19 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
 
   return (
     <div className={`chat-widget-container ${theme.buttonPosition}`}>
+      {/* --- NEW: Mini Welcome Bubble --- */}
+      {showMiniBubble && (
+        <div
+          className="mini-welcome-bubble"
+          onClick={toggleChat} // Clicking it opens the main chat
+          style={{
+            backgroundColor: theme.welcomeBubbleColor || theme.primaryColor, // Use custom color or primary
+            color: theme.welcomeBubbleTextColor || '#ffffff', // Use custom text color or white
+          }}
+        >
+          {theme.welcomeMessage} {/* Always use welcomeMessage for the mini bubble */}
+        </div>
+      )}
       {/* Chat Bubble Button */}
       <button
         className="chat-bubble-button"
@@ -113,6 +214,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
       {/* Chat Window */}
         <div className={`chat-window ${isOpen ? 'is-open' : 'is-closed'}`} style={{ borderColor: theme.primaryColor }}>
           <div className="chat-header" style={{ backgroundColor: theme.primaryColor }}>
+            {/* --- NEW: Header Avatar Image --- */}
+            {theme.headerIconUrl && (
+              <img src={theme.headerIconUrl} className="header-avatar" />
+            )}
             <h3>{theme.headerTitle}</h3>
             <button className="close-button" onClick={toggleChat}>
               &times;
