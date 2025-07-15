@@ -1,137 +1,99 @@
 // src/ChatWidget.tsx
-import React, { useState, useEffect, useRef } from 'react';
-import './ChatWidget.css'; // We'll create this file for styling
 
-// Define prop types for customization
+import React, { useState, useEffect, useRef } from 'react';
+import './ChatWidget.css';
+
+// (Keep your ChatTheme and ChatWidgetProps interfaces here as before)
+interface ChatTheme {
+  primaryColor: string;
+  buttonPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  welcomeMessage: string;
+  customIconUrl: string;
+  headerTitle: string;
+  userBubbleColor: string;
+  botBubbleColor: string;
+  inputPlaceholder: string;
+}
+
 interface ChatWidgetProps {
   n8nWebhookUrl: string;
-  theme?: {
-    primaryColor?: string;
-    buttonPosition?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
-    welcomeMessage?: string;
-    customIconUrl?: string; // URL for the chat button icon
-    headerTitle?: string;
-    userBubbleColor?: string;
-    botBubbleColor?: string;
-    inputPlaceholder?: string;
-  };
-  clientId?: string; // To identify the client in n8n
+  theme: ChatTheme;
+  clientId: string; // This is the client account ID
 }
 
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'bot';
-}
 
-const ChatWidget: React.FC<ChatWidgetProps> = ({
-  n8nWebhookUrl,
-  theme = {},
-  clientId,
-}) => {
+const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string }[]>([]);
   const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const {
-    primaryColor = '#007bff',
-    buttonPosition = 'bottom-right',
-    welcomeMessage = 'Hello! How can I help you today?',
-    customIconUrl = 'https://www.svgrepo.com/show/339963/chat-bot.svg', // Default icon
-    headerTitle = 'Lead Gen Chatbot',
-    userBubbleColor = '#e0f7fa',
-    botBubbleColor = '#f5f5f5',
-    inputPlaceholder = 'Type your message...',
-  } = theme;
+  // --- NEW: State for sessionId ---
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
-  // Initial welcome message
+  // --- NEW: Generate sessionId on initial load or when chat opens for the first time ---
   useEffect(() => {
-    if (isOpen && messages.length === 0 && welcomeMessage) {
-      setMessages([{ id: 'welcome', text: welcomeMessage, sender: 'bot' }]);
+    if (!sessionId) {
+      // Generate a simple unique ID (e.g., using current time + random number)
+      // For a more robust solution, consider a library like 'uuid'
+      setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
     }
-  }, [isOpen, welcomeMessage, messages.length]); // Added messages.length to dependency array
+  }, [sessionId]); // Run once to set the session ID
 
-  // Scroll to the bottom of the chat window
+
+  // Scroll to the latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isOpen]);
+
+  // Set initial welcome message when widget opens
+  useEffect(() => {
+    if (isOpen && messages.length === 0 && theme.welcomeMessage) {
+      setMessages([{ type: 'bot', text: theme.welcomeMessage }]);
+    }
+  }, [isOpen, messages.length, theme.welcomeMessage]);
+
+  const toggleChat = () => {
+    setIsOpen(!isOpen);
+  };
 
   const handleSendMessage = async () => {
-    if (input.trim() === '') return;
+    if (input.trim() === '' || !sessionId) return; // Ensure sessionId exists
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: input,
-      sender: 'user',
-    };
-    setMessages((prev) => [...prev, userMessage]);
+    const userMessage = input.trim();
+    setMessages((prevMessages) => [...prevMessages, { type: 'user', text: userMessage }]);
     setInput('');
+    setIsLoading(true);
 
     try {
-      // Get or create a session ID
-      let currentSessionId = localStorage.getItem('chatbotSessionId');
-      if (!currentSessionId) {
-        // Generate a more unique session ID
-        currentSessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        localStorage.setItem('chatbotSessionId', currentSessionId);
-      }
-
-      // Prepare data to send to n8n (using 'chatInput' as agreed)
-      const payload = {
-        chatInput: userMessage.text, // Sending the user's message as 'chatInput'
-        clientId: clientId, // Pass client ID for n8n to use
-        sessionId: currentSessionId, // Pass the session ID
-      };
-
       const response = await fetch(n8nWebhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Optionally, add a simple authorization header if your n8n webhook requires it
-          // 'Authorization': 'Bearer YOUR_SECRET_TOKEN'
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          chatInput: userMessage,
+          clientId: clientId,
+          sessionId: sessionId // --- NEW: Include sessionId here ---
+        }),
       });
 
       if (!response.ok) {
-        // Log the full response for better debugging if not OK
-        const errorBody = await response.text();
-        console.error('N8n response not OK:', response.status, errorBody);
-        throw new Error(`HTTP error! status: ${response.status}. Response: ${errorBody}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json(); // 'data' will be the array: [ { "output": "..." } ]
-      console.log('Received data from n8n:', data); // Log the raw data for verification
+      const data = await response.json();
+      console.log('Received data from n8n:', data);
 
-      // Extract bot response text from the n8n response
       const botResponseText = data.output || 'Sorry, I could not process your request. (N8n response format issue, check N8n output tab)';
 
-      // You might also want to update the sessionId if n8n returns a new one
-      // For now, we rely on the one generated by the frontend if n8n doesn't explicitly return one.
-      // If n8n sends sessionId in data[0].sessionId, uncomment and use this:
-      // if (Array.isArray(data) && data.length > 0 && data[0].sessionId) {
-      //     localStorage.setItem('chatbotSessionId', data[0].sessionId);
-      // }
-
-
-      const botMessage: Message = {
-        id: Date.now().toString() + '_bot',
-        text: botResponseText, // Use the extracted text
-        sender: 'bot',
-      };
-      setMessages((prev) => [...prev, botMessage]);
-
+      setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: botResponseText }]);
     } catch (error) {
       console.error('Error sending message to n8n or processing response:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: 'error',
-          text: 'Oops! Something went wrong. Please try again. (Check browser console for details)',
-          sender: 'bot',
-        },
-      ]);
+      setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: 'Oops! Something went wrong. Please try again.' }]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -141,71 +103,62 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
   };
 
-  // Apply button position class
-  const buttonClasses = `chatbot-button ${buttonPosition}`;
-
   return (
-    <>
-      {/* Chat Button */}
+    <div className={`chat-widget-container ${theme.buttonPosition}`}>
       <button
-        className={buttonClasses}
-        onClick={() => setIsOpen(!isOpen)}
-        style={{ backgroundColor: primaryColor }}
+        className="chat-bubble-button"
+        onClick={toggleChat}
+        style={{ backgroundColor: theme.primaryColor }}
       >
-        {customIconUrl ? (
-          <img src={customIconUrl} alt="Chat Icon" className="chatbot-icon" />
-        ) : (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="white"
-            className="chatbot-icon"
-          >
-            <path d="M0 0h24v24H0z" fill="none" />
-            <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6zm8 5H6v-2h8zm4-6H6V6h12z" />
-          </svg>
-        )}
+        <img src={theme.customIconUrl} alt="Chat Icon" className="chat-icon" />
       </button>
 
-      {/* Chat Window */}
       {isOpen && (
-        <div className="chatbot-window">
-          <div className="chatbot-header" style={{ backgroundColor: primaryColor }}>
-            <div className="chatbot-header-title">{headerTitle}</div>
-            <button className="chatbot-close-button" onClick={() => setIsOpen(false)}>
+        <div className="chat-window" style={{ borderColor: theme.primaryColor }}>
+          <div className="chat-header" style={{ backgroundColor: theme.primaryColor }}>
+            <h3>{theme.headerTitle}</h3>
+            <button className="close-button" onClick={toggleChat}>
               &times;
             </button>
           </div>
-          <div className="chatbot-messages">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`chatbot-message chatbot-message--${msg.sender}`}
-                style={{
-                  backgroundColor: msg.sender === 'user' ? userBubbleColor : botBubbleColor,
-                }}
-              >
-                {msg.text}
+          <div className="chat-messages">
+            {messages.map((msg, index) => (
+              <div key={index} className={`message ${msg.type}`}>
+                <div
+                  className={`message-bubble ${msg.type}`}
+                  style={{
+                    backgroundColor: msg.type === 'user' ? theme.userBubbleColor : theme.botBubbleColor,
+                    color: msg.type === 'user' ? 'black' : 'black',
+                  }}
+                >
+                  {msg.text}
+                </div>
               </div>
             ))}
+            {isLoading && (
+              <div className="message bot typing-indicator">
+                <div className="dot"></div>
+                <div className="dot"></div>
+                <div className="dot"></div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
-          <div className="chatbot-input-area">
+          <div className="chat-input-area">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={inputPlaceholder}
-              disabled={false} // Can be set to true while waiting for response
+              placeholder={theme.inputPlaceholder}
             />
-            <button onClick={handleSendMessage} style={{ backgroundColor: primaryColor }}>
+            <button onClick={handleSendMessage} style={{ backgroundColor: theme.primaryColor }}>
               Send
             </button>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 
