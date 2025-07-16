@@ -25,6 +25,7 @@ interface ChatTheme {
   welcomeBubbleDelaySeconds?: number;
   poweredByText?: string;
   poweredByUrl?: string;
+  showPoweredByBranding?: boolean;
 }
 
 interface ChatWidgetProps {
@@ -262,17 +263,17 @@ window.removeEventListener('scroll', handleScroll);
           </div>
 
 {/* --- NEW: Powered By Branding --- */}
-        {theme.poweredByText && (
-             <div className="chat-powered-by">
-              {theme.poweredByUrl ? (
-                <a href={theme.poweredByUrl} target="_blank" rel="noopener noreferrer">
-                 {theme.poweredByText}
-                 </a>
-            ) : (
-               <span>{theme.poweredByText}</span>
-             )}
-            </div>
-          )}
+{theme.showPoweredByBranding && theme.poweredByText && ( // NEW conditional rendering
+  <div className="chat-powered-by">
+    {theme.poweredByUrl ? (
+      <a href={theme.poweredByUrl} target="_blank" rel="noopener noreferrer">
+        {theme.poweredByText}
+      </a>
+    ) : (
+      <span>{theme.poweredByText}</span>
+    )}
+  </div>
+)}
        </div> {/* This closing div tag for chat-window should be here */}
     </div>
   );

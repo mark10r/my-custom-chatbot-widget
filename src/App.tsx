@@ -26,6 +26,7 @@ interface ChatbotConfig {
     welcomeBubbleDelaySeconds?: number; // Delay before mini bubble appears
     poweredByText?: string; // e.g., "Powered by OptInBot.io"
     poweredByUrl?: string;  // e.g., "https://optinbot.io"
+    showPoweredByBranding?: boolean; // Controls visibility of branding
   };
   clientId: string;
 }
@@ -35,7 +36,7 @@ function App() {
   const testConfig: ChatbotConfig = {
     n8nWebhookUrl: 'http://localhost:5678/webhook/8519b6d0-d4c2-481e-b064-e99b8251ba0d/chat', // YOUR N8N WEBHOOK URL HERE
     theme: {
-      primaryColor: '#86058aff',
+      primaryColor: '#08788bff',
       buttonPosition: 'bottom-right',
       welcomeMessage: 'Hi! How can I help you? 👋',
       customIconUrl: 'https://www.svgrepo.com/show/339963/chat-bot.svg',
@@ -54,6 +55,7 @@ function App() {
     welcomeBubbleDelaySeconds: 3, // Appears after 2 seconds
     poweredByText: 'Powered by OptInBot.io', // Your brand text
     poweredByUrl: 'https://optinbot.io',     // Your brand URL
+    showPoweredByBranding: true, // Set to true or false for your testing default
   },
   clientId: 'dev-client-123',
 };
