@@ -24,6 +24,8 @@ interface ChatbotConfig {
     welcomeBubbleColor?: string; // Background color of the mini bubble
     welcomeBubbleTextColor?: string; // Text color of the mini bubble
     welcomeBubbleDelaySeconds?: number; // Delay before mini bubble appears
+    poweredByText?: string; // e.g., "Powered by OptInBot.io"
+    poweredByUrl?: string;  // e.g., "https://optinbot.io"
   };
   clientId: string;
 }
@@ -37,7 +39,7 @@ function App() {
       buttonPosition: 'bottom-right',
       welcomeMessage: 'Hi! How can I help you? 👋',
       customIconUrl: 'https://www.svgrepo.com/show/339963/chat-bot.svg',
-      headerTitle: 'Dev Lead Gen Bot',
+      headerTitle: 'OptInBot Chatbot',
        headerIconUrl: 'https://optinbot.io/wp-content/uploads/2025/03/cropped-Untitled-design-17.png',
       userBubbleColor: '#d2f2f7ff',
       botBubbleColor: '#e4e2e2ff',
@@ -50,6 +52,8 @@ function App() {
     welcomeBubbleColor: '#dbdbdbff', // Matching primary color
     welcomeBubbleTextColor: '#302f2fff', // White text
     welcomeBubbleDelaySeconds: 3, // Appears after 2 seconds
+    poweredByText: 'Powered by OptInBot.io', // Your brand text
+    poweredByUrl: 'https://optinbot.io',     // Your brand URL
   },
   clientId: 'dev-client-123',
 };

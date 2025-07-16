@@ -280,6 +280,28 @@
     animation: bounce 0.6s infinite alternate;
 }
 
+.chat-powered-by {
+    padding: 5px 15px; /* Small padding */
+    text-align: center; /* Keep this for centering text within its own block */
+    font-size: 0.7em; /* Make text smaller (was 0.75em) */
+    font-weight: normal; /* Make weight lighter (was bold implicitly or default) */
+    color: #aaaaaa; /* Light grey color (adjust hex code for desired shade) */
+    background-color: #f0f0f0; /* Light background to separate it */
+    border-top: 1px solid #eee; /* Thin line above it */
+    flex-shrink: 0; /* Prevent it from shrinking */
+    width: 100%; /* Ensure it takes full width of its parent */
+    box-sizing: border-box; /* Include padding in the width calculation */
+}
+
+.chat-powered-by a {
+    color: #aaaaaa; /* Link color same as text */
+    text-decoration: none; /* No underline by default */
+}
+
+.chat-powered-by a:hover {
+    text-decoration: underline; /* Underline on hover */
+}
+
 .typing-indicator .dot:nth-child(2) {
     animation-delay: 0.2s;
 }
