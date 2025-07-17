@@ -1,41 +1,52 @@
-:root {
+/* IMPORTANT: Remove any 'body', 'html', or ':root' styles that apply globally to the page. */
+
+/* Apply global styles specifically to your widget's container */
+#optinbot-chatbot-container {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light dark; /* Keep if you want to support dark mode within the widget */
+  color: rgba(255, 255, 255, 0.87); /* Default text color for the widget */
+  /* If your widget needs a background, apply it here or in App.tsx's wrapper */
+  /* background-color: #242424; */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* You might want to add styles for the widget's overall position/size here
+     For example, if it's a fixed position bot: */
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999; /* Ensure it's on top */
+  /* Add width/height/max-width as appropriate for your widget's design */
+  max-width: 400px; /* Example */
+  border-radius: 10px; /* Example */
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* Example */
 }
 
-a {
+
+/* Now, all other styles should be specifically targeted to elements *within* your widget.
+   Prefix them with #optinbot-chatbot-container to ensure they are scoped. */
+
+#optinbot-chatbot-container a {
   font-weight: 500;
   color: #646cff;
   text-decoration: inherit;
 }
-a:hover {
+#optinbot-chatbot-container a:hover {
   color: #535bf2;
 }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
+#optinbot-chatbot-container h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
 
-button {
+#optinbot-chatbot-container button {
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
@@ -46,23 +57,24 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
-button:hover {
+#optinbot-chatbot-container button:hover {
   border-color: #646cff;
 }
-button:focus,
-button:focus-visible {
+#optinbot-chatbot-container button:focus,
+#optinbot-chatbot-container button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Adjust media queries to also target the container if needed for light/dark mode */
 @media (prefers-color-scheme: light) {
-  :root {
+  #optinbot-chatbot-container {
     color: #213547;
-    background-color: #ffffff;
+    /* background-color: #ffffff; */
   }
-  a:hover {
+  #optinbot-chatbot-container a:hover {
     color: #747bff;
   }
-  button {
+  #optinbot-chatbot-container button {
     background-color: #f9f9f9;
   }
 }
