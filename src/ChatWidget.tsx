@@ -2,280 +2,347 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 
-// Define the interfaces for your props (matching App.tsx's ChatbotConfig.theme)
-interface ChatTheme {
-  primaryColor: string;
-  buttonPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
-  welcomeMessage: string;
-  customIconUrl: string;
-  headerTitle: string;
-  headerIconUrl: string;
-  userBubbleColor: string;
-  botBubbleColor: string;
-  inputPlaceholder: string;
-  // --- NEW PROPERTIES FOR AUTO-OPEN ---
-  openAfterDelay?: boolean;
-  openDelaySeconds?: number;
-  openOnScroll?: boolean;
-  openOnScrollThreshold?: number;
-  showWelcomeBubble?: boolean;
-  welcomeBubbleColor?: string;
-  welcomeBubbleTextColor?: string;
-  welcomeBubbleDelaySeconds?: number;
-  poweredByText?: string;
-  poweredByUrl?: string;
-  showPoweredByBranding?: boolean;
-}
+// Define the interfaces for your props.
+// We can directly use the type from defaultConfig in main.tsx for consistency.
+import { defaultConfig } from './main.tsx';
 
+// The ChatWidgetProps interface will now be a subset of defaultConfig,
+// specifically the parts it receives from App.tsx.
+// Or, simply type it to match the main config if App.tsx passes the whole thing.
 interface ChatWidgetProps {
-  n8nWebhookUrl: string;
-  theme: ChatTheme; // Use the ChatTheme interface
-  clientId: string;
+    n8nWebhookUrl: string;
+    theme: typeof defaultConfig.theme; // Use the theme part of defaultConfig
+    clientId: string;
 }
 
+// Helper to convert camelCase to kebab-case for CSS variables
+function kebabCase(string: string): string {
+    return string.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
+}
 
 const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string }[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+    const [isOpen, setIsOpen] = useState(false);
+    const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string }[]>([]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Session ID logic (this was the last successful addition)
-  const [sessionId, setSessionId] = useState<string | null>(null);
-    // --- NEW: Ref to track if auto-open has already occurred ---
-  const autoOpenTriggeredRef = useRef(false);
-  // --- NEW: State and Ref for Mini Welcome Bubble ---
-  const [showMiniBubble, setShowMiniBubble] = useState(false);
-  const miniBubbleTriggeredRef = useRef(false); // To ensure mini bubble only appears once
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const autoOpenTriggeredRef = useRef(false);
+    const [showMiniBubble, setShowMiniBubble] = useState(false);
+    const miniBubbleTriggeredRef = useRef(false);
 
-  useEffect(() => {
-    if (!sessionId) {
-      setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
-    }
-  }, [sessionId]);
+    // --- NEW EFFECT: Apply dynamic CSS variables ---
+    // This runs AFTER the component has mounted and rendered its initial HTML,
+    // ensuring the chat-widget-container element exists.
+    useEffect(() => {
+        const chatWidgetContainer = document.getElementById('optinbot-chatbot-container');
 
+        if (chatWidgetContainer) {
+            // Apply CSS Variables based on theme object passed via props
+            for (const [key, value] of Object.entries(theme)) {
+                // Only apply if the value is a string and represents a color or URL, or input placeholder
+                if (typeof value === 'string' && (key.endsWith('Color') || key.endsWith('Url') || key === 'inputPlaceholder')) {
+                    if (key.endsWith('Url')) {
+                        // For URLs, set as 'url(...)'
+                        chatWidgetContainer.style.setProperty(`--${kebabCase(key)}`, `url('${value}')`);
+                    } else {
+                        // For colors and placeholder text (which becomes a CSS var)
+                        chatWidgetContainer.style.setProperty(`--${kebabCase(key)}`, value);
+                    }
+                }
+            }
+            // Explicitly set specific CSS variables if they are not covered by the loop
+            // (e.g., if theme object names don't perfectly match kebab-cased CSS var names)
+            chatWidgetContainer.style.setProperty('--primary-color', theme.primaryColor);
+            chatWidgetContainer.style.setProperty('--user-bubble-color', theme.userBubbleColor);
+            chatWidgetContainer.style.setProperty('--bot-bubble-color', theme.botBubbleColor);
+            chatWidgetContainer.style.setProperty('--welcome-bubble-color', theme.welcomeBubbleColor || theme.primaryColor); // Fallback to primary
+            chatWidgetContainer.style.setProperty('--welcome-bubble-text-color', theme.welcomeBubbleTextColor || '#ffffff'); // Fallback to white
+            // Ensure headerTextColor is set
+            // chatWidgetContainer.style.setProperty('--header-text-color', theme.headerTextColor || 'white'); // Assuming headerTextColor exists in theme
+            chatWidgetContainer.style.setProperty('--input-placeholder-color', theme.inputPlaceholder);
+            chatWidgetContainer.style.setProperty('--powered-by-text-color', theme.poweredByText); // Assuming this is a color variable now
+            chatWidgetContainer.style.setProperty('--powered-by-bg-color', theme.poweredByText); // Assuming this needs a background variable
+            chatWidgetContainer.style.setProperty('--input-border-color', theme.botBubbleColor); // Using botBubbleColor for input border, adjust if different
+            chatWidgetContainer.style.setProperty('--chat-window-bg-color', 'white'); // Assuming this is always white
+            chatWidgetContainer.style.setProperty('--send-button-text-color', 'white'); // Assuming this is always white
 
-  // Scroll to the latest message
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isOpen]);
+            // Apply position class
+            chatWidgetContainer.className = `chat-widget-container ${theme.buttonPosition}`;
+            
+            // For elements whose content (text or src) needs to be updated,
+            // we do it directly here using querySelector.
+            // Header Title
+            const headerTitleElement = chatWidgetContainer.querySelector('.chat-header h3');
+            if (headerTitleElement) {
+                headerTitleElement.textContent = theme.headerTitle;
+            }
 
-  // Set initial welcome message when widget opens
-  useEffect(() => {
-    if (isOpen && messages.length === 0 && theme.welcomeMessage) {
-      setMessages([{ type: 'bot', text: theme.welcomeMessage }]);
-    }
-  }, [isOpen, messages.length, theme.welcomeMessage]);
+            // Header Avatar (src attribute)
+            const headerAvatarElement = chatWidgetContainer.querySelector('.header-avatar') as HTMLImageElement | null;
+            if (headerAvatarElement) {
+                headerAvatarElement.src = theme.headerIconUrl;
+                headerAvatarElement.alt = `${theme.headerTitle} Avatar`; // Add alt text
+            }
 
-  // --- NEW EFFECT: Auto-open after a delay ---
- useEffect(() => {
- // Only proceed if delay auto-open is enabled, a delay is specified,
-// the widget is currently closed, and it hasn't been auto-opened yet.
-if (theme.openAfterDelay && theme.openDelaySeconds !== undefined && !isOpen && !autoOpenTriggeredRef.current) {
-const timer = setTimeout(() => {
-setIsOpen(true);
-autoOpenTriggeredRef.current = true; // Mark as triggered for this session
-}, theme.openDelaySeconds * 1000); // Convert seconds to milliseconds
+            // Main Chat Button Icon (src attribute)
+            const chatIconElement = chatWidgetContainer.querySelector('.chat-icon') as HTMLImageElement | null;
+            if (chatIconElement) {
+                chatIconElement.src = theme.customIconUrl;
+            }
 
-// Cleanup function: Clear the timer if the component unmounts
- // or if dependencies change (e.g., if `isOpen` becomes true manually)
-return () => clearTimeout(timer);
-}
-}, [theme.openAfterDelay, theme.openDelaySeconds, isOpen]); // Re-run if these theme props or isOpen state changes
+            // Welcome Bubble Text (content)
+            const welcomeBubbleSpan = chatWidgetContainer.querySelector('.mini-welcome-bubble span');
+            if (welcomeBubbleSpan) {
+                welcomeBubbleSpan.textContent = theme.welcomeMessage;
+            }
+            
+            // Input Placeholder (attribute)
+            const chatInputElement = chatWidgetContainer.querySelector('.chat-input-area input') as HTMLInputElement | null;
+            if (chatInputElement) {
+                chatInputElement.placeholder = theme.inputPlaceholder;
+            }
 
-// --- NEW EFFECT: Mini Welcome Bubble Auto-display ---
-useEffect(() => {
-// Only show if enabled, not already triggered, and main chat is closed
-if (theme.showWelcomeBubble && !miniBubbleTriggeredRef.current && !isOpen) {
-const delay = theme.welcomeBubbleDelaySeconds !== undefined ? theme.welcomeBubbleDelaySeconds : 1; // Default to 1 second if not set
-const timer = setTimeout(() => {
-setShowMiniBubble(true);
-miniBubbleTriggeredRef.current = true; // Mark as triggered
-}, delay * 1000);
+            // Powered By Branding
+            const poweredByDiv = chatWidgetContainer.querySelector('.chat-powered-by') as HTMLElement | null;
+            if (poweredByDiv) {
+                if (theme.showPoweredByBranding) {
+                    poweredByDiv.style.display = 'block'; // Ensure it's visible
+                    poweredByDiv.innerHTML = ''; // Clear existing content
+                    const span = document.createElement('span');
+                    span.textContent = theme.poweredByText;
+                    poweredByDiv.appendChild(span);
 
-return () => clearTimeout(timer);
-}
-// Hide mini bubble if main chat opens
-if (isOpen && showMiniBubble) {
-setShowMiniBubble(false);
-}
-}, [theme.showWelcomeBubble, theme.welcomeBubbleDelaySeconds, isOpen, showMiniBubble]); // Depend on isOpen to hide it
+                    if (theme.poweredByUrl) {
+                        const link = document.createElement('a');
+                        link.href = theme.poweredByUrl;
+                        link.target = '_blank';
+                        link.rel = 'noopener noreferrer';
+                        link.textContent = ' (Learn More)';
+                        poweredByDiv.appendChild(link);
+                    }
+                } else {
+                    poweredByDiv.style.display = 'none'; // Hide if branding is off
+                }
+            }
+        }
+    }, [theme]); // Re-run this effect if the 'theme' prop changes
 
-// --- NEW EFFECT: Auto-open on scroll threshold ---
-useEffect(() => {
-// Only proceed if scroll auto-open is enabled, a threshold is specified,
-// the widget is currently closed, and it hasn't been auto-opened yet.
-if (theme.openOnScroll && theme.openOnScrollThreshold !== undefined && !isOpen && !autoOpenTriggeredRef.current) {
-const handleScroll = () => {
-// Calculate scroll percentage
-const scrollHeight = document.documentElement.scrollHeight; // Total height of the scrollable content
-const clientHeight = document.documentElement.clientHeight; // Height of the viewport
-const scrollTop = window.scrollY; // Current scroll position from the top
+    // Existing useEffect hooks for sessionId, messagesEndRef, initial welcome message
+    useEffect(() => {
+        if (!sessionId) {
+            setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+        }
+    }, [sessionId]);
 
-// Avoid division by zero if the content is not scrollable
-const totalScrollableHeight = scrollHeight - clientHeight;
-if (totalScrollableHeight <= 0) return;
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, isOpen]);
 
-const scrollPercentage = (scrollTop / totalScrollableHeight) * 100;
+    useEffect(() => {
+        if (isOpen && messages.length === 0 && theme.welcomeMessage) {
+            setMessages([{ type: 'bot', text: theme.welcomeMessage }]);
+        }
+    }, [isOpen, messages.length, theme.welcomeMessage]);
 
-// If scroll threshold is met/exceeded and not yet triggered
-if (scrollPercentage >= (theme.openOnScrollThreshold || 0) && !autoOpenTriggeredRef.current) {
-setIsOpen(true);
-autoOpenTriggeredRef.current = true; // Mark as triggered
-window.removeEventListener('scroll', handleScroll); // Remove listener once triggered to prevent re-triggering
-}
-};
+    // Existing useEffect for auto-open after delay
+    useEffect(() => {
+        if (theme.openAfterDelay && theme.openDelaySeconds !== undefined && !isOpen && !autoOpenTriggeredRef.current) {
+            const timer = setTimeout(() => {
+                setIsOpen(true);
+                autoOpenTriggeredRef.current = true;
+            }, theme.openDelaySeconds * 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [theme.openAfterDelay, theme.openDelaySeconds, isOpen]);
 
-// Add the scroll event listener when the component mounts or dependencies change
-window.addEventListener('scroll', handleScroll);
+    // Existing useEffect for mini welcome bubble auto-display
+    useEffect(() => {
+        if (theme.showWelcomeBubble && !miniBubbleTriggeredRef.current && !isOpen) {
+            const delay = theme.welcomeBubbleDelaySeconds !== undefined ? theme.welcomeBubbleDelaySeconds : 1;
+            const timer = setTimeout(() => {
+                setShowMiniBubble(true);
+                miniBubbleTriggeredRef.current = true;
+            }, delay * 1000);
+            return () => clearTimeout(timer);
+        }
+        if (isOpen && showMiniBubble) {
+            setShowMiniBubble(false);
+        }
+    }, [theme.showWelcomeBubble, theme.welcomeBubbleDelaySeconds, isOpen, showMiniBubble]);
 
-// Cleanup function: Remove the event listener when the component unmounts
-return () => {
-window.removeEventListener('scroll', handleScroll);
-};
-}
-}, [theme.openOnScroll, theme.openOnScrollThreshold, isOpen]); // Re-run if these theme props or isOpen state changes
+    // Existing useEffect for auto-open on scroll threshold
+    useEffect(() => {
+        if (theme.openOnScroll && theme.openOnScrollThreshold !== undefined && !isOpen && !autoOpenTriggeredRef.current) {
+            const handleScroll = () => {
+                const scrollHeight = document.documentElement.scrollHeight;
+                const clientHeight = document.documentElement.clientHeight;
+                const scrollTop = window.scrollY;
+                const totalScrollableHeight = scrollHeight - clientHeight;
+                if (totalScrollableHeight <= 0) return;
+                const scrollPercentage = (scrollTop / totalScrollableHeight) * 100;
 
-  const toggleChat = () => {
-    setIsOpen(!isOpen);
-    if (!isOpen) { // If it's about to open
-      setShowMiniBubble(false);
-    }
-  };
+                if (scrollPercentage >= (theme.openOnScrollThreshold || 0) && !autoOpenTriggeredRef.current) {
+                    setIsOpen(true);
+                    autoOpenTriggeredRef.current = true;
+                    window.removeEventListener('scroll', handleScroll);
+                }
+            };
+            window.addEventListener('scroll', handleScroll);
+            return () => {
+                window.removeEventListener('scroll', handleScroll);
+            };
+        }
+    }, [theme.openOnScroll, theme.openOnScrollThreshold, isOpen]);
 
-  const handleSendMessage = async () => {
-    if (input.trim() === '' || !sessionId) return;
+    const toggleChat = () => {
+        setIsOpen(!isOpen);
+        if (!isOpen) {
+            setShowMiniBubble(false);
+        }
+    };
 
-    const userMessage = input.trim();
-    setMessages((prevMessages) => [...prevMessages, { type: 'user', text: userMessage }]);
-    setInput('');
-    setIsLoading(true);
+    const handleSendMessage = async () => {
+        if (input.trim() === '' || !sessionId) return;
 
-    try {
-      const response = await fetch(n8nWebhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chatInput: userMessage,
-          clientId: clientId,
-          sessionId: sessionId
-        }),
-      });
+        const userMessage = input.trim();
+        setMessages((prevMessages) => [...prevMessages, { type: 'user', text: userMessage }]);
+        setInput('');
+        setIsLoading(true);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        try {
+            const response = await fetch(n8nWebhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    chatInput: userMessage,
+                    clientId: clientId,
+                    sessionId: sessionId
+                }),
+            });
 
-      const data = await response.json();
-      console.log('Received data from n8n:', data);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-      const botResponseText = data.output || 'Sorry, I could not process your request. (N8n response format issue, check N8n output tab)';
+            const data = await response.json();
+            console.log('Received data from n8n:', data);
 
-      setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: botResponseText }]);
-    } catch (error) {
-      console.error('Error sending message to n8n or processing response:', error);
-      setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: 'Oops! Something went wrong. Please try again.' }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+            const botResponseText = data.output || 'Sorry, I could not process your request. (N8n response format issue, check N8n output tab)';
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSendMessage();
-    }
-  };
+            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: botResponseText }]);
+        } catch (error) {
+            console.error('Error sending message to n8n or processing response:', error);
+            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: 'Oops! Something went wrong. Please try again.' }]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  return (
-    <div className={`chat-widget-container ${theme.buttonPosition}`}>
-      {/* --- NEW: Mini Welcome Bubble --- */}
-      {showMiniBubble && (
-        <div
-          className="mini-welcome-bubble"
-          onClick={toggleChat} // Clicking it opens the main chat
-          style={{
-            backgroundColor: theme.welcomeBubbleColor || theme.primaryColor, // Use custom color or primary
-            color: theme.welcomeBubbleTextColor || '#ffffff', // Use custom text color or white
-          }}
-        >
-          {theme.welcomeMessage} {/* Always use welcomeMessage for the mini bubble */}
-        </div>
-      )}
-      {/* Chat Bubble Button */}
-      <button
-        className="chat-bubble-button"
-        onClick={toggleChat}
-        style={{ backgroundColor: theme.primaryColor }}
-      >
-        <img src={theme.customIconUrl} alt="Chat Icon" className="chat-icon" />
-      </button>
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleSendMessage();
+        }
+    };
 
-      {/* Chat Window */}
-        <div className={`chat-window ${isOpen ? 'is-open' : 'is-closed'}`} style={{ borderColor: theme.primaryColor }}>
-          <div className="chat-header" style={{ backgroundColor: theme.primaryColor }}>
-            {/* --- NEW: Header Avatar Image --- */}
-            {theme.headerIconUrl && (
-              <img src={theme.headerIconUrl} className="header-avatar" />
-            )}
-            <h3>{theme.headerTitle}</h3>
-            <button className="close-button" onClick={toggleChat}>
-              &times;
-            </button>
-          </div>
-          <div className="chat-messages">
-            {messages.map((msg, index) => (
-              <div key={index} className={`message ${msg.type}`}>
+    return (
+        // The main container div's class name and position are handled by the useEffect above
+        <div className={`chat-widget-container ${theme.buttonPosition}`}>
+            {showMiniBubble && (
+                // Use CSS variables for mini bubble styles
                 <div
-                  className={`message-bubble ${msg.type}`}
-                  style={{
-                    backgroundColor: msg.type === 'user' ? theme.userBubbleColor : theme.botBubbleColor,
-                    color: msg.type === 'user' ? 'black' : 'black',
-                  }}
+                    className="mini-welcome-bubble"
+                    onClick={toggleChat}
+                    // Styles are now directly from CSS variables
                 >
-                  {msg.text}
+                    <span>{theme.welcomeMessage}</span> {/* Wrap in span for easier textContent access */}
                 </div>
-              </div>
-            ))}
-            {isLoading && (
-              <div className="message bot typing-indicator">
-                <div className="dot"></div>
-                <div className="dot"></div>
-                <div className="dot"></div>
-              </div>
             )}
-            <div ref={messagesEndRef} />
-          </div>
-          <div className="chat-input-area">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={theme.inputPlaceholder}
-            />
-            <button onClick={handleSendMessage} style={{ backgroundColor: theme.primaryColor }}>
-              Send
+            {/* Chat Bubble Button */}
+            <button
+                className="chat-bubble-button"
+                onClick={toggleChat}
+                // Use CSS variables for button styles
+            >
+                <img src={theme.customIconUrl} alt="Chat Icon" className="chat-icon" />
             </button>
-          </div>
 
-{/* --- NEW: Powered By Branding --- */}
-{theme.showPoweredByBranding && theme.poweredByText && ( // NEW conditional rendering
-  <div className="chat-powered-by">
-    {theme.poweredByUrl ? (
-      <a href={theme.poweredByUrl} target="_blank" rel="noopener noreferrer">
-        {theme.poweredByText}
-      </a>
-    ) : (
-      <span>{theme.poweredByText}</span>
-    )}
-  </div>
-)}
-       </div> {/* This closing div tag for chat-window should be here */}
-    </div>
-  );
+            {/* Chat Window */}
+            <div
+                className={`chat-window ${isOpen ? 'is-open' : 'is-closed'}`}
+                // Border color uses CSS variable
+                style={{ borderColor: 'var(--primary-color)' }}
+            >
+                <div
+                    className="chat-header"
+                    // Background color uses CSS variable
+                    style={{ backgroundColor: 'var(--primary-color)' }}
+                >
+                    {theme.headerIconUrl && (
+                        <img src={theme.headerIconUrl} className="header-avatar" />
+                    )}
+                    <h3>{theme.headerTitle}</h3> {/* Header Title from theme */}
+                    <button className="close-button" onClick={toggleChat}>
+                        &times;
+                    </button>
+                </div>
+                <div className="chat-messages">
+                    {messages.map((msg, index) => (
+                        <div key={index} className={`message ${msg.type}`}>
+                            <div
+                                className={`message-bubble ${msg.type}`}
+                                style={{
+                                    // Use CSS variables for message bubbles
+                                    backgroundColor: msg.type === 'user' ? 'var(--user-bubble-color)' : 'var(--bot-bubble-color)',
+                                    color: msg.type === 'user' ? 'black' : 'black', // Can also be a variable if needed
+                                }}
+                            >
+                                {msg.text}
+                            </div>
+                        </div>
+                    ))}
+                    {isLoading && (
+                        <div className="message bot typing-indicator">
+                            <div className="dot"></div>
+                            <div className="dot"></div>
+                            <div className="dot"></div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
+                <div className="chat-input-area">
+                    <input
+                        type="text"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder={theme.inputPlaceholder} // Placeholder text from theme
+                    />
+                    <button onClick={handleSendMessage}
+                        // Use CSS variable for send button background
+                        style={{ backgroundColor: 'var(--primary-color)' }}
+                    >
+                        Send
+                    </button>
+                </div>
+
+                {theme.showPoweredByBranding && theme.poweredByText && (
+                    <div className="chat-powered-by">
+                        {theme.poweredByUrl ? (
+                            <a href={theme.poweredByUrl} target="_blank" rel="noopener noreferrer">
+                                {theme.poweredByText}
+                            </a>
+                        ) : (
+                            <span>{theme.poweredByText}</span>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 };
 
 export default ChatWidget;
