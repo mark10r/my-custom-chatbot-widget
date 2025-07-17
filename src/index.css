@@ -13,6 +13,7 @@
     line-height: 1.2;
     color: #333; /* This will now be a fallback for general widget text */
 
+
     /* Custom URL variables for images */
     --custom-icon-url: url('https://www.svgrepo.com/show/339963/chat-bot.svg');
     --header-icon-url: url('https://optinbot.io/wp-content/uploads/2025/03/cropped-Untitled-design-17.png');
@@ -143,9 +144,9 @@
 }
 
 .chat-header {
-    padding: 20px;
-    margin-top: -15px;
-    margin-bottom: -15px;
+    padding: 10px;
+    margin-top: 0px;
+    margin-bottom: 0px;
     color: var(--header-text-color); /* Use variable */
     display: flex;
     align-items: center;

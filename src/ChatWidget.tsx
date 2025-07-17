@@ -11,8 +11,6 @@ interface ChatWidgetProps {
     clientId: string;
 }
 
-// REMOVED: The kebabCase function as it's no longer used.
-
 const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string }[]>([]);
@@ -59,7 +57,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
             chatWidgetContainer.style.setProperty('--primary-color', theme.primaryColor);
             chatWidgetContainer.style.setProperty('--user-bubble-color', theme.userBubbleColor);
             chatWidgetContainer.style.setProperty('--bot-bubble-color', theme.botBubbleColor);
-            
+
             // Welcome bubble colors with fallbacks
             chatWidgetContainer.style.setProperty('--welcome-bubble-color', theme.welcomeBubbleColor || theme.primaryColor);
             chatWidgetContainer.style.setProperty('--welcome-bubble-text-color', theme.welcomeBubbleTextColor || '#ffffff');
@@ -73,10 +71,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
             chatWidgetContainer.style.setProperty('--input-placeholder-color', theme.inputPlaceholder);
             chatWidgetContainer.style.setProperty('--input-border-color', theme.botBubbleColor); // Consistent with bot bubble border
 
-            // Powered by branding colors (ensure these are actual colors or 'transparent')
+            // Powered by branding colors
             chatWidgetContainer.style.setProperty('--powered-by-text-color', '#aaaaaa'); // Default gray for powered by text
             chatWidgetContainer.style.setProperty('--powered-by-link-color', theme.primaryColor); // Link color for branding, defaults to primary
-            chatWidgetContainer.style.setProperty('--powered-by-bg-color', 'transparent'); // Assuming background is transparent
+
+            // Set chat window background (if you want this to be configurable)
+            chatWidgetContainer.style.setProperty('--chat-window-bg-color', theme.chatWindowBgColor);
+
+            // Removed: chatInputAreaBgColor and poweredByBgColor from here as they are hardcoded white in CSS
+            // sendButtonBgColor is handled by --primary-color in CSS.
 
             // Log the values that were just set
             console.log("ChatWidget: CSS Variables set:");
@@ -85,8 +88,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
             console.log("--bot-bubble-color:", chatWidgetContainer.style.getPropertyValue('--bot-bubble-color'));
             console.log("--welcome-bubble-color:", chatWidgetContainer.style.getPropertyValue('--welcome-bubble-color'));
             console.log("--welcome-bubble-text-color:", chatWidgetContainer.style.getPropertyValue('--welcome-bubble-text-color'));
-            // ... add more logs for other variables if needed
-
+            console.log("--chat-window-bg-color:", chatWidgetContainer.style.getPropertyValue('--chat-window-bg-color'));
             console.log("ChatWidget: Theme application complete.");
         } else {
             console.error("ChatWidget: '#optinbot-chatbot-container' not found when trying to apply theme variables.");
@@ -221,7 +223,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
                     className="mini-welcome-bubble"
                     onClick={toggleChat}
                 >
-                    <span>{theme.welcomeMessage}</span>
+                    <span>{theme.welcomeBubbleText}</span> {/* Changed to welcomeBubbleText */}
                 </div>
             )}
             {/* Chat Bubble Button */}
