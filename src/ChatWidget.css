@@ -158,12 +158,6 @@
     visibility: visible;  /* Make visible */
 }
 
-/* State when chat window is CLOSED (inherits from .chat-window's defaults) */
-/* This class exists for semantic clarity but typically doesn't need extra styles beyond .chat-window's default */
-.chat-window.is-closed {
-    /* You can put specific 'closed' styles here if they differ from .chat-window defaults */
-}
-
 
 .chat-header {
   padding: 20px;
