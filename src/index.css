@@ -13,22 +13,6 @@
     line-height: 1.2;
     color: #333; /* This will now be a fallback for general widget text */
 
-    /* CUSTOMIZABLE CSS VARIABLES (These will be set by JavaScript based on finalConfig) */
-    /* The values here are just fallbacks if JS fails or for initial render */
-    --primary-color: #4CAF50; /* Will be overridden by JS from main.tsx config */
-    --user-bubble-color: #DCF8C6; /* Will be overridden by JS */
-    --bot-bubble-color: #e0e0e0; /* Will be overridden by JS */
-    --welcome-bubble-color: #f0f0f0; /* Will be overridden by JS */
-    --welcome-bubble-text-color: #333; /* Will be overridden by JS */
-    --header-text-color: white; /* Will be overridden by JS */
-    --close-button-color: white; /* Will be overridden by JS */
-    --input-placeholder-color: #a0a0a0; /* Will be overridden by JS */
-    --powered-by-text-color: #aaaaaa; /* Will be overridden by JS */
-    --powered-by-bg-color: #f0f0f0; /* Will be overridden by JS */
-    --input-border-color: #ddd; /* Will be overridden by JS */
-    --chat-window-bg-color: white; /* Will be overridden by JS */
-    --send-button-text-color: white; /* Will be overridden by JS */
-
     /* Custom URL variables for images */
     --custom-icon-url: url('https://www.svgrepo.com/show/339963/chat-bot.svg');
     --header-icon-url: url('https://optinbot.io/wp-content/uploads/2025/03/cropped-Untitled-design-17.png');
