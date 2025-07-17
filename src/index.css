@@ -1,73 +1,309 @@
-/* src/index.css */
+/* src/index.css - NOW CONTAINS ALL WIDGET STYLES */
 
-/* These 'body' styles will likely cause conflicts with your WordPress theme */
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+.chat-widget-container {
+    position: fixed;
+    z-index: 1000;
 }
 
-/* Original :root variables - these affect the whole document unless otherwise scoped */
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Position the button */
+.chat-widget-container.bottom-right {
+    bottom: 20px;
+    right: 20px;
+}
+.chat-widget-container.bottom-left {
+    bottom: 20px;
+    left: 20px;
+}
+.chat-widget-container.top-right {
+    top: 20px;
+    right: 20px;
+}
+.chat-widget-container.top-left {
+    top: 20px;
+    left: 20px;
 }
 
-/* Other global styles that are not specific to a contained widget element */
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+.mini-welcome-bubble {
+    position: absolute;
+    padding: 8px 12px;
+    border-radius: 10px; /* Rounded corners for the bubble */
+    font-size: 0.9em;
+    font-weight: bold;
+    min-width: 200px;
+    max-width: 300px; /* Limit width */
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 999; /* Below the main chat window, above the button */
+
+    /* Positioning relative to the chat-bubble-button */
+    /* Default for bottom-right button */
+    bottom: 60px; /* Above the main button */
+    right: 30px; /* To the left of the main button */
+
+    opacity: 0; /* Start hidden for fade-in animation */
+    transform: translateY(10px); /* Start slightly below for pop-up effect */
+    animation: fadeInPopUp 0.5s ease-out forwards; /* Apply animation */
+    animation-delay: 0.5s; /* Delay the animation slightly after component mounts */
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Adjust mini bubble position based on main button position */
+.chat-widget-container.bottom-right .mini-welcome-bubble {
+    bottom: 60px;
+    right: 60px;
+}
+.chat-widget-container.bottom-left .mini-welcome-bubble {
+    bottom: 60px;
+    left: 60px;
+}
+.chat-widget-container.top-right .mini-welcome-bubble {
+    top: 60px;
+    right: 60px;
+}
+.chat-widget-container.top-left .mini-welcome-bubble {
+    top: 60px;
+    left: 60px;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+/* Animation for the mini bubble */
+@keyframes fadeInPopUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-/* Media query for light mode, affecting global elements */
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
+.chat-bubble-button {
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(12, 12, 12, 0.2);
+    transition: transform 0.2s ease-in-out;
+    color: white; /* For icon if it's text */
+}
+
+.chat-bubble-button:hover {
+    transform: scale(1.05);
+}
+
+.chat-icon {
+    width: 30px; /* Adjust size as needed */
+    height: 30px;
+    filter: brightness(0) invert(1); /* Makes SVG white if it's black */
+}
+
+.chat-window {
+    position: fixed;
+    width: 350px; /* Adjust width as needed */
+    height: 500px; /* Adjust height as needed */
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 2px solid; /* For primaryColor border */
+
+    /* Animation properties: START STATE for the animation */
+    transform: scale(0.9); /* Start slightly scaled down */
+    opacity: 0;           /* Start fully transparent */
+    pointer-events: none; /* Disable interaction when closed */
+    visibility: hidden;   /* Hidden but still allows transition */
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out, visibility 0.3s; /* Smooth transition for all properties */
+
+    /* Default position, will be overridden by position-specific classes below */
+    bottom: 90px;
+    right: 20px;
+}
+
+/* Position and transform-origin for different button positions */
+.chat-widget-container.bottom-right .chat-window {
+    right: 20px;
+    bottom: 90px;
+    transform-origin: bottom right; /* Animation originates from bottom right */
+}
+
+.chat-widget-container.bottom-left .chat-window {
+    left: 20px;
+    bottom: 90px;
+    transform-origin: bottom left; /* Animation originates from bottom left */
+}
+
+.chat-widget-container.top-right .chat-window {
+    right: 20px;
+    top: 90px;
+    transform-origin: top right; /* Animation originates from top right */
+}
+
+.chat-widget-container.top-left .chat-window {
+    left: 20px;
+    top: 90px;
+    transform-origin: top left; /* Animation originates from top left */
+}
+
+/* State when chat window is OPEN: END STATE for the animation */
+.chat-window.is-open {
+    transform: scale(1); /* Scale to full size */
+    opacity: 1;           /* Become fully opaque */
+    pointer-events: auto; /* Enable interaction when open */
+    visibility: visible;  /* Make visible */
+}
+
+.chat-header {
+    padding: 20px;
+    margin-top: -15px;
+    margin-bottom: -15px;
+    color: white;
+    display: flex; /* Use flexbox to align items horizontally */
+    align-items: center; /* Vertically center items in the header */
+    justify-content: space-between; /* Space between avatar/title and close button */
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.header-avatar {
+    width: 35px; /* Fixed width */
+    height: 35px; /* Fixed height */
+    border-radius: 50%; /* Makes the image perfectly round */
+    margin-right: 10px; /* Space between the avatar and the header title */
+    object-fit: cover; /* Ensures the image covers the area without distortion */
+    flex-shrink: 0; /* Prevent it from shrinking */
+    /* Optional: If your icon is dark and needs to be white on a dark header */
+    /* filter: brightness(0) invert(1); */
+}
+
+.chat-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+    flex-grow: 1; /* Allows the title to take up remaining space */
+    white-space: nowrap; /* Prevent title from wrapping if it's too long */
+    overflow: hidden; /* Hide overflow if title is too long */
+    text-overflow: ellipsis; /* Add ellipsis if title is truncated */
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5em;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.chat-messages {
+    flex-grow: 1;
+    padding: 15px;
+    overflow-y: auto;
     background-color: #f9f9f9;
-  }
+}
+
+.message {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.message.user {
+    justify-content: flex-end;
+}
+
+.message.bot {
+    justify-content: flex-start;
+}
+
+.message-bubble {
+    padding: 10px 15px;
+    border-radius: 20px;
+    max-width: 80%;
+    word-wrap: break-word;
+    line-height: 1.4;
+    font-size: 15px;
+}
+
+.message.user .message-bubble {
+    border-bottom-right-radius: 5px;
+}
+
+.message.bot .message-bubble {
+    border-bottom-left-radius: 5px;
+}
+
+.chat-input-area {
+    display: flex;
+    padding: 15px;
+    border-top: 1px solid #eee;
+    background-color: #fff;
+    flex-shrink: 0;
+}
+
+.chat-input-area input {
+    flex-grow: 1;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 10px 15px;
+    margin-right: 10px;
+    font-size: 0.9em;
+}
+
+.chat-input-area button {
+    border: none;
+    border-radius: 20px;
+    padding: 10px 15px;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* Typing indicator */
+.typing-indicator .dot {
+    width: 8px;
+    height: 8px;
+    background-color: #bbb;
+    border-radius: 50%;
+    display: inline-block;
+    margin: 0 2px;
+    animation: bounce 0.6s infinite alternate;
+}
+
+.chat-powered-by {
+    padding: 5px 15px; /* Small padding */
+    text-align: center; /* Keep this for centering text within its own block */
+    font-size: 0.7em; /* Make text smaller (was 0.75em) */
+    font-weight: normal; /* Make weight lighter (was bold implicitly or default) */
+    color: #aaaaaa; /* Light grey color (adjust hex code for desired shade) */
+    background-color: #f0f0f0; /* Light background to separate it */
+    border-top: 1px solid #eee; /* Thin line above it */
+    flex-shrink: 0; /* Prevent it from shrinking */
+    width: 100%; /* Ensure it takes full width of its parent */
+    box-sizing: border-box; /* Include padding in the width calculation */
+}
+
+.chat-powered-by a {
+    color: #aaaaaa; /* Link color same as text */
+    text-decoration: none; /* No underline by default */
+}
+
+.chat-powered-by a:hover {
+    text-decoration: underline; /* Underline on hover */
+}
+
+.typing-indicator .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-5px); }
 }

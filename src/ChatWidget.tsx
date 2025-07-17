@@ -1,7 +1,6 @@
 // src/ChatWidget.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import './ChatWidget.css'; // Assuming your CSS is here
 
 // Define the interfaces for your props (matching App.tsx's ChatbotConfig.theme)
 interface ChatTheme {

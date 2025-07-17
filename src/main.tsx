@@ -2,11 +2,12 @@
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import './index.css'; // Your widget's global CSS
+import './index.css'; // This is the standard way Vite handles CSS
+
 import App from './App.tsx'; // Your main App component
 
-// @ts-ignore  <-- THIS LINE IS CRITICAL
-const forceCssInclusion = import.meta.glob('./index.css', { eager: true });
+// REMOVED: @ts-ignore and const forceCssInclusion = import.meta.glob('./index.css', { eager: true });
+// This line is no longer needed and might be interfering.
 
 // IMPORTANT: This ID must match the div ID in your embedding script.
 const rootElement = document.getElementById('optinbot-chatbot-container');
