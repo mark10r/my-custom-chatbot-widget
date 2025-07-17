@@ -1,8 +1,42 @@
 /* src/index.css - NOW CONTAINS ALL WIDGET STYLES */
 
+/* Base reset for the widget container and its children */
+/* This aims to isolate the widget's styling from the host page's CSS */
 .chat-widget-container {
-    position: fixed;
-    z-index: 1000;
+    /* 'all: unset;' resets all properties to their initial or inherited values. */
+    /* This is a powerful way to clear default browser/theme styles. */
+    all: unset;
+    display: block; /* Ensure it behaves as a block element */
+    box-sizing: border-box; /* Crucial for consistent sizing */
+    position: fixed; /* Keep fixed position for floating widget */
+    z-index: 10000; /* Increased z-index to ensure it's on top */
+    font-family: Arial, sans-serif; /* Explicit font-family */
+    font-size: 16px; /* Base font size in pixels */
+    line-height: 1.2; /* Consistent line height */
+    color: #333; /* Default text color */
+}
+
+/* Ensure all elements within the widget inherit box-sizing and apply basic resets */
+.chat-widget-container *,
+.chat-widget-container *::before,
+.chat-widget-container *::after {
+    box-sizing: inherit; /* Inherit box-sizing from parent */
+    margin: 0;
+    padding: 0;
+    line-height: inherit; /* Inherit line height */
+    /* Only inherit font-size and color if not explicitly set on specific elements */
+    /* This prevents them from being overridden by external CSS unless we intend it */
+    font-size: inherit;
+    color: inherit;
+    vertical-align: baseline; /* Consistent alignment */
+
+    /* Remove default element styles that might interfere */
+    border: none;
+    background: none;
+    outline: none;
+    text-decoration: none;
+    appearance: none; /* For form elements */
+    -webkit-tap-highlight-color: transparent; /* For mobile tap effects */
 }
 
 /* Position the button */
@@ -26,25 +60,26 @@
 .mini-welcome-bubble {
     position: absolute;
     padding: 8px 12px;
-    border-radius: 10px; /* Rounded corners for the bubble */
-    font-size: 0.9em;
+    border-radius: 10px;
+    font-size: 14px; /* Explicit font size in pixels */
     font-weight: bold;
     min-width: 200px;
-    max-width: 300px; /* Limit width */
+    max-width: 300px;
     text-align: center;
     cursor: pointer;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    z-index: 999; /* Below the main chat window, above the button */
+    z-index: 999;
 
-    /* Positioning relative to the chat-bubble-button */
-    /* Default for bottom-right button */
-    bottom: 60px; /* Above the main button */
-    right: 30px; /* To the left of the main button */
+    bottom: 60px;
+    right: 30px;
 
-    opacity: 0; /* Start hidden for fade-in animation */
-    transform: translateY(10px); /* Start slightly below for pop-up effect */
-    animation: fadeInPopUp 0.5s ease-out forwards; /* Apply animation */
-    animation-delay: 0.5s; /* Delay the animation slightly after component mounts */
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeInPopUp 0.5s ease-out forwards;
+    animation-delay: 0.5s;
+
+    background-color: #f0f0f0;
+    color: #333;
 }
 
 /* Adjust mini bubble position based on main button position */
@@ -80,8 +115,8 @@
 .chat-bubble-button {
     border: none;
     border-radius: 50%;
-    width: 60px;
-    height: 60px;
+    width: 60px; /* Explicit size */
+    height: 60px; /* Explicit size */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -89,6 +124,7 @@
     box-shadow: 0 4px 8px rgba(12, 12, 12, 0.2);
     transition: transform 0.2s ease-in-out;
     color: white; /* For icon if it's text */
+    background-color: #4CAF50; /* Default green, will be overridden by primaryColor */
 }
 
 .chat-bubble-button:hover {
@@ -96,15 +132,16 @@
 }
 
 .chat-icon {
-    width: 30px; /* Adjust size as needed */
-    height: 30px;
-    filter: brightness(0) invert(1); /* Makes SVG white if it's black */
+    width: 30px; /* Explicit size */
+    height: 30px; /* Explicit size */
+    filter: brightness(0) invert(1);
+    display: block; /* Ensures it behaves as a block for sizing */
 }
 
 .chat-window {
     position: fixed;
-    width: 350px; /* Adjust width as needed */
-    height: 500px; /* Adjust height as needed */
+    width: 350px; /* Explicit width */
+    height: 500px; /* Explicit height */
     background-color: white;
     border-radius: 10px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
@@ -113,14 +150,12 @@
     overflow: hidden;
     border: 2px solid; /* For primaryColor border */
 
-    /* Animation properties: START STATE for the animation */
-    transform: scale(0.9); /* Start slightly scaled down */
-    opacity: 0;           /* Start fully transparent */
-    pointer-events: none; /* Disable interaction when closed */
-    visibility: hidden;   /* Hidden but still allows transition */
-    transition: transform 0.3s ease-out, opacity 0.3s ease-out, visibility 0.3s; /* Smooth transition for all properties */
+    transform: scale(0.9);
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out, visibility 0.3s;
 
-    /* Default position, will be overridden by position-specific classes below */
     bottom: 90px;
     right: 20px;
 }
@@ -129,33 +164,33 @@
 .chat-widget-container.bottom-right .chat-window {
     right: 20px;
     bottom: 90px;
-    transform-origin: bottom right; /* Animation originates from bottom right */
+    transform-origin: bottom right;
 }
 
 .chat-widget-container.bottom-left .chat-window {
     left: 20px;
     bottom: 90px;
-    transform-origin: bottom left; /* Animation originates from bottom left */
+    transform-origin: bottom left;
 }
 
 .chat-widget-container.top-right .chat-window {
     right: 20px;
     top: 90px;
-    transform-origin: top right; /* Animation originates from top right */
+    transform-origin: top right;
 }
 
 .chat-widget-container.top-left .chat-window {
     left: 20px;
     top: 90px;
-    transform-origin: top left; /* Animation originates from top left */
+    transform-origin: top left;
 }
 
 /* State when chat window is OPEN: END STATE for the animation */
 .chat-window.is-open {
-    transform: scale(1); /* Scale to full size */
-    opacity: 1;           /* Become fully opaque */
-    pointer-events: auto; /* Enable interaction when open */
-    visibility: visible;  /* Make visible */
+    transform: scale(1);
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
 }
 
 .chat-header {
@@ -163,38 +198,37 @@
     margin-top: -15px;
     margin-bottom: -15px;
     color: white;
-    display: flex; /* Use flexbox to align items horizontally */
-    align-items: center; /* Vertically center items in the header */
-    justify-content: space-between; /* Space between avatar/title and close button */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     font-weight: bold;
     flex-shrink: 0;
+    background-color: #4CAF50; /* Default green, will be overridden by primaryColor */
 }
 
 .header-avatar {
     width: 35px; /* Fixed width */
     height: 35px; /* Fixed height */
-    border-radius: 50%; /* Makes the image perfectly round */
-    margin-right: 10px; /* Space between the avatar and the header title */
-    object-fit: cover; /* Ensures the image covers the area without distortion */
-    flex-shrink: 0; /* Prevent it from shrinking */
-    /* Optional: If your icon is dark and needs to be white on a dark header */
-    /* filter: brightness(0) invert(1); */
+    border-radius: 50%;
+    margin-right: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
 }
 
 .chat-header h3 {
     margin: 0;
-    font-size: 1.1em;
-    flex-grow: 1; /* Allows the title to take up remaining space */
-    white-space: nowrap; /* Prevent title from wrapping if it's too long */
-    overflow: hidden; /* Hide overflow if title is too long */
-    text-overflow: ellipsis; /* Add ellipsis if title is truncated */
+    font-size: 18px; /* Explicit font size in pixels */
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .close-button {
     background: none;
     border: none;
     color: white;
-    font-size: 1.5em;
+    font-size: 24px; /* Explicit font size in pixels */
     cursor: pointer;
     line-height: 1;
 }
@@ -225,11 +259,15 @@
     max-width: 80%;
     word-wrap: break-word;
     line-height: 1.4;
-    font-size: 15px;
+    font-size: 15px; /* Explicit font size in pixels */
+    background-color: #e0e0e0;
+    color: #333;
 }
 
 .message.user .message-bubble {
     border-bottom-right-radius: 5px;
+    background-color: #DCF8C6;
+    color: #000;
 }
 
 .message.bot .message-bubble {
@@ -250,7 +288,8 @@
     border-radius: 20px;
     padding: 10px 15px;
     margin-right: 10px;
-    font-size: 0.9em;
+    font-size: 14px; /* Explicit font size in pixels */
+    color: #333;
 }
 
 .chat-input-area button {
@@ -260,6 +299,7 @@
     color: white;
     cursor: pointer;
     font-weight: bold;
+    background-color: #4CAF50; /* Default green, will be overridden by primaryColor */
 }
 
 /* Typing indicator */
@@ -274,25 +314,25 @@
 }
 
 .chat-powered-by {
-    padding: 5px 15px; /* Small padding */
-    text-align: center; /* Keep this for centering text within its own block */
-    font-size: 0.7em; /* Make text smaller (was 0.75em) */
-    font-weight: normal; /* Make weight lighter (was bold implicitly or default) */
-    color: #aaaaaa; /* Light grey color (adjust hex code for desired shade) */
-    background-color: #f0f0f0; /* Light background to separate it */
-    border-top: 1px solid #eee; /* Thin line above it */
-    flex-shrink: 0; /* Prevent it from shrinking */
-    width: 100%; /* Ensure it takes full width of its parent */
-    box-sizing: border-box; /* Include padding in the width calculation */
+    padding: 5px 15px;
+    text-align: center;
+    font-size: 11px; /* Explicit font size in pixels */
+    font-weight: normal;
+    color: #aaaaaa;
+    background-color: #f0f0f0;
+    border-top: 1px solid #eee;
+    flex-shrink: 0;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .chat-powered-by a {
-    color: #aaaaaa; /* Link color same as text */
-    text-decoration: none; /* No underline by default */
+    color: #aaaaaa;
+    text-decoration: none;
 }
 
 .chat-powered-by a:hover {
-    text-decoration: underline; /* Underline on hover */
+    text-decoration: underline;
 }
 
 .typing-indicator .dot:nth-child(2) {
