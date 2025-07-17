@@ -5,8 +5,7 @@ import { createRoot } from 'react-dom/client';
 import './index.css'; // Your widget's global CSS
 import App from './App.tsx'; // Your main App component
 
-// IMPORTANT: Add this comment on the line *above* the declaration
-// @ts-ignore
+// @ts-ignore  <-- THIS LINE IS CRITICAL
 const forceCssInclusion = import.meta.glob('./index.css', { eager: true });
 
 // IMPORTANT: This ID must match the div ID in your embedding script.
