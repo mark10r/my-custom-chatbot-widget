@@ -13,6 +13,8 @@
     line-height: 1.2;
     color: #333; /* This will now be a fallback for general widget text */
 
+    --input-border-color: #E4E2E2;
+
 
     /* Custom URL variables for images */
     --custom-icon-url: url('https://www.svgrepo.com/show/339963/chat-bot.svg');

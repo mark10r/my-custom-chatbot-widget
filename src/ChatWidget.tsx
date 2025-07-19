@@ -69,8 +69,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
 
             // Set other dynamic properties
             chatWidgetContainer.style.setProperty('--input-placeholder-color', theme.inputPlaceholder);
-            chatWidgetContainer.style.setProperty('--input-border-color', theme.botBubbleColor); // Consistent with bot bubble border
-
+           
             // Powered by branding colors
             chatWidgetContainer.style.setProperty('--powered-by-text-color', '#aaaaaa'); // Default gray for powered by text
             chatWidgetContainer.style.setProperty('--powered-by-link-color', theme.primaryColor); // Link color for branding, defaults to primary
