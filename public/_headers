@@ -1,3 +1,6 @@
+/assets/main.js /assets/index-*.js 200 
+/assets/main.css /assets/index-*.css 200 
+ 
 /* 
   Access-Control-Allow-Origin: * 
   Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS 

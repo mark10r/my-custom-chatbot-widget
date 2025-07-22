@@ -111,8 +111,8 @@
 
 .chat-window {
     position: fixed;
-    width: 350px;
-    height: 500px;
+    width: 400px;
+    height: 550px;
     background-color: var(--chat-window-bg-color); /* Use variable */
     border-radius: 10px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
@@ -152,17 +152,17 @@
     color: var(--header-text-color); /* Use variable */
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: space-between; /* This will space out the items */
     font-weight: bold;
     flex-shrink: 0;
     background-color: var(--primary-color); /* Use variable */
 }
 
 .header-avatar {
-    width: 35px;
-    height: 35px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    margin-right: 10px;
+    margin-right: 0px;
     object-fit: cover;
     flex-shrink: 0;
     /* content: var(--header-icon-url); */ /* No need for this if setting src in JS */
@@ -175,6 +175,28 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.header-info {
+    flex-grow: 1; /* This new container takes up the space */
+    margin: 0 10px;
+}
+
+.header-status {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: normal;
+    margin-top: 2px;
+}
+
+.online-dot {
+    width: 9px;
+    height: 9px;
+    background-color: #28a745; /* A standard 'online' green */
+    border-radius: 50%;
+    border: 2px solid white;
+    margin-right: 6px;
 }
 
 .close-button {

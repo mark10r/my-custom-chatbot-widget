@@ -245,7 +245,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
                     {theme.headerIconUrl && (
                         <img src={theme.headerIconUrl} className="header-avatar" />
                     )}
-                    <h3>{theme.headerTitle}</h3>
+                    <div className="header-info">
+        <h3>{theme.headerTitle}</h3>
+        {theme.showOnlineStatus && (
+            <div className="header-status">
+                <span className="online-dot"></span>
+                <span>Online</span>
+            </div>
+        )}
+    </div>
                     <button className="close-button" onClick={toggleChat}
                         style={{ color: 'var(--close-button-color)' }}
                     >

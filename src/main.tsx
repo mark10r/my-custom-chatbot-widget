@@ -17,6 +17,7 @@ export const defaultConfig = {
         welcomeMessage: 'Hello! How can I help you? 👋',
         customIconUrl: 'https://www.svgrepo.com/show/339963/chat-bot.svg', // Default chat icon
         headerTitle: 'AI Assistant',
+        showOnlineStatus: true,
         headerIconUrl: 'https://optinbot.io/wp-content/uploads/2025/03/cropped-Untitled-design-17.png', // Default header icon
         inputPlaceholder: 'Type your message...',
         openAfterDelay: false,
