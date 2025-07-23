@@ -8,8 +8,8 @@
     // IMPORTANT: These URLs MUST be updated manually (or via automation)
     // after each successful 'npm run build' and Cloudflare Pages deployment.
     // Get these from your Cloudflare Pages 'Assets uploaded' tab.
-    const LATEST_CSS_URL = 'https://cdn.optinbot.io/assets/index-YOUR_LATEST_CSS_HASH.css';
-    const LATEST_JS_URL = 'https://cdn.optinbot.io/assets/index-YOUR_LATEST_JS_HASH.js';
+    const LATEST_CSS_URL = 'http://cdn.optinbot.io/assets/index-DR2Tsp8E.css';
+    const LATEST_JS_URL = 'http://cdn.optinbot.io/assets/index-UV7NyE0Z.js';
 
     // --- Dynamic Injection Logic ---
 
