@@ -88,7 +88,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
             console.log("--welcome-bubble-color:", chatWidgetContainer.style.getPropertyValue('--welcome-bubble-color'));
             console.log("--welcome-bubble-text-color:", chatWidgetContainer.style.getPropertyValue('--welcome-bubble-text-color'));
             console.log("--chat-window-bg-color:", chatWidgetContainer.style.getPropertyValue('--chat-window-bg-color'));
-            console.log("ChatWidget: Theme application complete.");
+            console.log("ChatWidget: Theme application complete. (Hash Test 12345)"); // Changed text
         } else {
             console.error("ChatWidget: '#optinbot-chatbot-container' not found when trying to apply theme variables.");
         }
