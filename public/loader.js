@@ -9,7 +9,7 @@
     // after each successful 'npm run build' and Cloudflare Pages deployment.
     // Get these from your Cloudflare Pages 'Assets uploaded' tab.
     const LATEST_CSS_URL = 'http://cdn.optinbot.io/assets/index-DR2Tsp8E.css';
-    const LATEST_JS_URL = 'http://cdn.optinbot.io/assets/index-UV7NyE0Z.js';
+    const LATEST_JS_URL = 'http://cdn.optinbot.io/assets/index-gxgBfqx3.js';
 
     // --- Dynamic Injection Logic ---
 
