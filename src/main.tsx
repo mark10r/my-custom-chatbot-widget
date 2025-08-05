@@ -8,7 +8,7 @@ import './App.css'; // Assuming you still have App.css for global styles
 
 // Define a default configuration
 export const defaultConfig = {
-    n8nWebhookUrl: 'YOUR_N8N_WEBHOOK_URL_HERE', // Placeholder, replace with your actual URL
+    n8nWebhookUrl: 'http://localhost:5678/webhook/8519b6d0-d4c2-481e-b064-e99b8251ba0d/chat', // Placeholder, replace with your actual URL
     theme: {
         primaryColor: '#08788bff', // Default teal/green (will be pink in your example override)
         userBubbleColor: '#d2f2f7ff', // Default light blue/green

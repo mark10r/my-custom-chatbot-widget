@@ -88,7 +88,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
             console.log("--welcome-bubble-color:", chatWidgetContainer.style.getPropertyValue('--welcome-bubble-color'));
             console.log("--welcome-bubble-text-color:", chatWidgetContainer.style.getPropertyValue('--welcome-bubble-text-color'));
             console.log("--chat-window-bg-color:", chatWidgetContainer.style.getPropertyValue('--chat-window-bg-color'));
-            console.log("ChatWidget: Theme application complete. (Hash Test 12345)"); // Changed text
+            console.log("ChatWidget: Theme application complete.");
         } else {
             console.error("ChatWidget: '#optinbot-chatbot-container' not found when trying to apply theme variables.");
         }
@@ -126,6 +126,45 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme, clientId 
             setShowMiniBubble(false);
         }
     }, [theme.showWelcomeBubble, theme.welcomeBubbleDelaySeconds, isOpen, showMiniBubble]); // Depend on isOpen to hide it
+
+    useEffect(() => {
+        const handlePageLeave = () => {
+            // Only send the request if a conversation has started
+            if (messages.length > 1 && sessionId) {
+                const endOfConversationMessage = "End conversation, send transcript.";
+                
+                const payload = {
+                    chatInput: endOfConversationMessage,
+                    clientId: clientId,
+                    sessionId: sessionId,
+                    event: 'conversation_ended'
+                };
+
+                // Use fetch with keepalive to reliably send data on page leave
+                try {
+                    fetch(n8nWebhookUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(payload),
+                        keepalive: true // This ensures the request is sent even after the page unloads
+                    });
+                } catch (e) {
+                    // This is unlikely to be triggered for keepalive requests, but it's safe to keep.
+                    console.error("Error sending page leave event:", e);
+                }
+            }
+        };
+
+        // 'pagehide' is the most reliable event for this functionality
+        window.addEventListener('pagehide', handlePageLeave);
+
+        // Cleanup function to remove the listener
+        return () => {
+            window.removeEventListener('pagehide', handlePageLeave);
+        };
+    }, [messages, sessionId, clientId, n8nWebhookUrl]); // Dependencies
 
     // --- NEW EFFECT: Auto-open on scroll threshold ---
     useEffect(() => {

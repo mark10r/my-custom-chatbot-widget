@@ -42,10 +42,22 @@
 }
 
 /* Position the button (no change here, as position is handled by classes) */
-.chat-widget-container.bottom-right { bottom: 20px; right: 20px; }
-.chat-widget-container.bottom-left { bottom: 20px; left: 20px; }
-.chat-widget-container.top-right { top: 20px; right: 20px; }
-.chat-widget-container.top-left { top: 20px; left: 20px; }
+.chat-widget-container.bottom-right {
+    bottom: 40px; /* Moved 10px up from 20px */
+    right: 40px; /* Moved 10px left from 20px */
+}
+.chat-widget-container.bottom-left {
+    bottom: 40px; /* Moved 10px up */
+    left: 40px; /* Moved 10px right */
+}
+.chat-widget-container.top-right {
+    top: 40px; /* Moved 10px down */
+    right: 40px; /* Moved 10px left */
+}
+.chat-widget-container.top-left {
+    top: 40px; /* Moved 10px down */
+    left: 40px; /* Moved 10px right */
+}
 
 .mini-welcome-bubble {
     position: absolute;
@@ -132,10 +144,10 @@
 }
 
 /* Position and transform-origin for different button positions (no change) */
-.chat-widget-container.bottom-right .chat-window { right: 20px; bottom: 90px; transform-origin: bottom right; }
-.chat-widget-container.bottom-left .chat-window { left: 20px; bottom: 90px; transform-origin: bottom left; }
-.chat-widget-container.top-right .chat-window { right: 20px; top: 90px; transform-origin: top right; }
-.chat-widget-container.top-left .chat-window { left: 20px; top: 90px; transform-origin: top left; }
+.chat-widget-container.bottom-right .chat-window { right: 40px; bottom: 110px; transform-origin: bottom right; }
+.chat-widget-container.bottom-left .chat-window { left: 40px; bottom: 110px; transform-origin: bottom left; }
+.chat-widget-container.top-right .chat-window { right: 40px; top: 110px; transform-origin: top right; }
+.chat-widget-container.top-left .chat-window { left: 40px; top: 110px; transform-origin: top left; }
 
 /* State when chat window is OPEN: END STATE for the animation (no change) */
 .chat-window.is-open {

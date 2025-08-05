@@ -7,7 +7,6 @@ import ChatWidget from './ChatWidget';
 import { defaultConfig } from './main.tsx';
 
 // Define the interface for the props of your App component
-// It now expects a 'config' prop that has the same shape as defaultConfig
 interface AppProps {
     config: typeof defaultConfig;
 }
