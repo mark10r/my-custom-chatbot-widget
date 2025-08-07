@@ -242,10 +242,38 @@
     color: #333; /* Default message text color, can be a variable if needed */
 }
 
+.message-bubble p {
+  margin: 0 0 0.5em 0; /* Add some spacing between paragraphs */
+}
+
+.message-bubble p:last-child {
+  margin-bottom: 0; /* Remove margin from the last paragraph in a bubble */
+}
+
+.message-bubble strong {
+  font-weight: 600; /* Make bold text a bit heavier */
+}
+
+.message-bubble ul,
+.message-bubble ol {
+  padding-left: 20px; /* Indent lists */
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.message-bubble a {
+    color: var(--primary-color); /* Make links use your theme's primary color */
+    text-decoration: underline;
+}
+
+.message-bubble a:hover {
+    text-decoration: none;
+}
+
 .message.user .message-bubble {
     border-bottom-right-radius: 5px;
     background-color: var(--user-bubble-color); /* Use variable */
-    color: #000; /* Can be a variable if needed */
+    color: #333333; /* Can be a variable if needed */
 }
 
 .message.bot .message-bubble { border-bottom-left-radius: 5px; }
