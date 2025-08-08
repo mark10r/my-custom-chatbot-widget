@@ -4,7 +4,7 @@ import { defaultConfig } from './main.tsx'; // Ensure this path is correct
 
 interface ChatWidgetProps {
     n8nWebhookUrl: string;
-    theme?: Partial<typeof defaultConfig.theme>; // Theme is optional to prevent crashes
+    theme?: Partial<typeof defaultConfig.theme>;
     clientId: string;
 }
 
@@ -23,8 +23,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
     const miniBubbleTriggeredRef = useRef(false);
     const autoOpenTriggeredRef = useRef(false);
 
-    // --- ORIGINAL THEME EFFECT (RESTORED) ---
-    // This hook applies the theme properties as CSS variables for your stylesheet to use
+    // --- THEME APPLICATION ---
     useEffect(() => {
         const container = document.getElementById('optinbot-chatbot-container');
         if (!container) return;
@@ -84,6 +83,35 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
             setShowMiniBubble(false);
         }
     }, [finalTheme.showWelcomeBubble, finalTheme.welcomeBubbleDelaySeconds, isOpen, showMiniBubble]);
+
+    // --- RESTORED: Page Leave Effect ---
+    useEffect(() => {
+        const handlePageLeave = () => {
+            if (messages.length > 1 && sessionId) {
+                const endOfConversationMessage = "End conversation, send transcript.";
+                const payload = {
+                    chatInput: endOfConversationMessage,
+                    clientId: clientId,
+                    sessionId: sessionId,
+                    event: 'conversation_ended'
+                };
+                try {
+                    fetch(n8nWebhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                        keepalive: true
+                    });
+                } catch (e) {
+                    console.error("Error sending page leave event:", e);
+                }
+            }
+        };
+        window.addEventListener('pagehide', handlePageLeave);
+        return () => {
+            window.removeEventListener('pagehide', handlePageLeave);
+        };
+    }, [messages, sessionId, clientId, n8nWebhookUrl]);
 
     // --- STABLE CORE HANDLERS ---
     const toggleChat = () => {
@@ -159,7 +187,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
                                 {msg.type === 'user' ? (
                                     msg.text
                                 ) : (
-                                    // This is the markdown parsing fix
                                     <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.text || '') }} />
                                 )}
                             </div>
