@@ -116,9 +116,7 @@
 .chat-icon {
     width: 30px;
     height: 30px;
-    /* filter: brightness(0) invert(1); */ /* Remove this if customIconUrl provides colored icon */
     display: block;
-    content: var(--custom-icon-url); /* Use the CSS variable for the icon URL */
 }
 
 .chat-window {

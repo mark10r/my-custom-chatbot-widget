@@ -15,10 +15,10 @@ export const defaultConfig = {
         botBubbleColor: '#e4e2e2ff', // Default light grey
         buttonPosition: 'bottom-right',
         welcomeMessage: 'Hello! How can I help you? 👋',
-        customIconUrl: 'https://www.svgrepo.com/show/339963/chat-bot.svg', // Default chat icon
+        customIconUrl: 'https://www.svgrepo.com/show/490933/chat.svg', // Default chat icon
         headerTitle: 'AI Assistant',
         showOnlineStatus: true,
-        headerIconUrl: 'https://optinbot.io/wp-content/uploads/2025/03/cropped-Untitled-design-17.png', // Default header icon
+        headerIconUrl: 'https://www.svgrepo.com/show/474732/assistant.svg', // Default header icon
         inputPlaceholder: 'Type your message...',
         openAfterDelay: false,
         openDelaySeconds: 5,
