@@ -341,10 +341,111 @@
     text-decoration: underline;
 }
 
+/* Container for suggested message buttons */
+.suggested-messages-area {
+    padding: 10px 15px;
+    display: flex; /* Still a flex container */
+    flex-direction: column; /* Stack its direct children (e.g., the button wrapper) */
+    gap: 8px; /* Gap between the suggested messages wrapper and other elements if any */
+    border-top: 1px solid #E4E2E2;
+    background-color: white;
+    flex-shrink: 0;
+    /* justify-content: center; */ /* Removed, as it's now on the button wrapper */
+}
+
+/* NEW: Container for the actual suggested message buttons */
+.suggested-messages-button-wrapper {
+    display: flex;
+    flex-wrap: nowrap; /* CRITICAL: Forces buttons into a single line */
+    gap: 8px;
+    justify-content: flex-start; /* Align buttons to the left */
+    overflow-x: auto; /* Enables horizontal scrolling */
+    padding: 2px 0 8px 0; /* Adds some space, especially at the bottom for aesthetics */
+    
+    /* Hides the scrollbar for a cleaner UI */
+    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* And ADD this new rule right below it to hide the scrollbar in Webkit browsers */
+.suggested-messages-button-wrapper::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, and Opera */
+}
+
+/* Style for individual suggested message buttons */
+.suggested-message-button {
+    background-color: #f0f0f0;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 15px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    white-space: nowrap; /* This keeps the text on one line, which is correct */
+    flex-shrink: 0; /* Add this to prevent buttons from shrinking */
+    
+    /* We have removed max-width, overflow, and text-overflow */
+}
+.suggested-message-button:hover {
+    background-color: var(--primary-color); /* Use primary color on hover */
+    color: white; /* White text on hover */
+}
+
+.suggested-messages-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 5px;
+}
+
+.suggested-messages-title {
+    font-size: 14px;
+    color: #666;
+    font-weight: normal;
+}
+
+.suggested-messages-toggle {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 5px;
+    transition: transform 0.2s ease-in-out;
+}
+
+.suggested-messages-toggle.rotated {
+    transform: rotate(90deg);
+}
+
 .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
 .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes bounce {
     from { transform: translateY(0); }
     to { transform: translateY(-5px); }
+}
+
+@keyframes shrinkAndFadeOut {
+  from {
+    opacity: 1;
+    max-width: 200px; /* Start with a generous max-width */
+    margin-right: 8px; /* Corresponds to your flex gap */
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  to {
+    opacity: 0;
+    max-width: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+    overflow: hidden; /* Prevent text from showing during shrink */
+  }
+}
+
+/* This class will trigger the animation */
+.suggested-message-button.disappearing {
+  animation: shrinkAndFadeOut 0.4s ease-out forwards;
 }

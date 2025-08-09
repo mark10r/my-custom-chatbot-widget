@@ -4,7 +4,7 @@ import { defaultConfig } from './main.tsx'; // Ensure this path is correct
 
 interface ChatWidgetProps {
     n8nWebhookUrl: string;
-    theme?: Partial<typeof defaultConfig.theme>;
+    theme: typeof defaultConfig.theme;
     clientId: string;
 }
 
@@ -22,6 +22,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
     const [showMiniBubble, setShowMiniBubble] = useState(false);
     const miniBubbleTriggeredRef = useRef(false);
     const autoOpenTriggeredRef = useRef(false);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const scrollAnimationRef = useRef<number | null>(null);
+    const [visibleSuggestedMessages, setVisibleSuggestedMessages] = useState(
+  (theme.suggestedMessages || []).map((msg, index) => ({
+    id: index,
+    text: msg,
+    status: 'visible' as 'visible' | 'disappearing',
+  }))
+);
 
     // --- THEME APPLICATION ---
     useEffect(() => {
@@ -121,35 +130,85 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
         }
     };
 
-    const handleSendMessage = async () => {
-        if (input.trim() === '' || !sessionId) return;
-        const userMessage = { type: 'user' as const, text: input.trim() };
-        setMessages((prev) => [...prev, userMessage]);
-        setInput('');
-        setIsLoading(true);
+    // src/ChatWidget.tsx (inside ChatWidget component)
 
-        try {
-            const response = await fetch(n8nWebhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chatInput: userMessage.text, clientId, sessionId }),
-            });
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            const botResponse = { type: 'bot' as const, text: data.output || 'Sorry, something went wrong.' };
-            setMessages((prev) => [...prev, botResponse]);
-        } catch (error) {
-            console.error('Error sending message:', error);
-            const errorResponse = { type: 'bot' as const, text: 'Oops! I had trouble connecting.' };
-            setMessages((prev) => [...prev, errorResponse]);
-        } finally {
-            setIsLoading(false);
+const handleSendMessage = async (messageText?: string) => { // CRITICAL CHANGE: Added optional messageText parameter
+    const textToSend = messageText || input.trim(); // Use messageText if provided, else input state
+
+    if (textToSend === '' || !sessionId) return; // Validate the text to send
+
+    const userMessage = { type: 'user' as const, text: textToSend }; // Use textToSend for the message object
+    setMessages((prevMessages) => [...prevMessages, userMessage]);
+    setInput(''); // Clear input field after sending
+    setIsLoading(true);
+
+    try {
+        const response = await fetch(n8nWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chatInput: userMessage.text, clientId, sessionId }), // Use userMessage.text for payload
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-    };
+
+        const data = await response.json();
+        const botResponseText = data.output || 'Sorry, I could not process your request.';
+
+        let formattedText = botResponseText;
+        if (typeof marked !== 'undefined') {
+            const parsedResult = marked.parse(botResponseText);
+            formattedText = (parsedResult instanceof Promise) ? await parsedResult : parsedResult;
+        }
+
+        setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: formattedText }]);
+    } catch (error) {
+        console.error('Error sending message to n8n or processing response:', error);
+        setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: 'Oops! I had trouble connecting.' }]);
+    } finally {
+        setIsLoading(false);
+    }
+};
     
     const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') handleSendMessage();
     };
+
+    const stopScrolling = () => {
+    if (scrollAnimationRef.current) {
+        cancelAnimationFrame(scrollAnimationRef.current);
+    }
+};
+
+const startScrolling = (direction: 'left' | 'right') => {
+    stopScrolling(); // Stop any existing scroll first
+    const scrollAmount = direction === 'left' ? -4 : 4; // Scroll 2px per frame
+
+    const scroll = () => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollLeft += scrollAmount;
+            scrollAnimationRef.current = requestAnimationFrame(scroll);
+        }
+    };
+    scrollAnimationRef.current = requestAnimationFrame(scroll);
+};
+
+const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!scrollContainerRef.current) return;
+
+    const rect = scrollContainerRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const scrollZoneWidth = 60; // 60px area on each side triggers scroll
+
+    if (mouseX < scrollZoneWidth) {
+        startScrolling('left');
+    } else if (mouseX > rect.width - scrollZoneWidth) {
+        startScrolling('right');
+    } else {
+        stopScrolling();
+    }
+};
 
     // --- ORIGINAL JSX WITH MARKDOWN FIX ---
     return (
@@ -201,6 +260,43 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
                     )}
                     <div ref={messagesEndRef} />
                 </div>
+
+{/* --- Corrected: Suggested Messages Area with conditional rendering --- */}
+{visibleSuggestedMessages.length > 0 && (
+  <div className="suggested-messages-area">
+    <div
+      ref={scrollContainerRef}                              // <--- ADD THIS LINE
+      onMouseMove={handleMouseMove}                         // <--- ADD THIS LINE
+      onMouseLeave={stopScrolling}                          // <--- ADD THIS LINE
+      className="suggested-messages-button-wrapper"
+    >
+      {visibleSuggestedMessages.map(msg => (
+        <button
+          key={msg.id}
+          className={`suggested-message-button ${msg.status === 'disappearing' ? 'disappearing' : ''}`}
+          onClick={() => {
+            // Don't remove yet, just mark for disappearance
+            setVisibleSuggestedMessages(currentMessages =>
+              currentMessages.map(m =>
+                m.id === msg.id ? { ...m, status: 'disappearing' } : m
+              )
+            );
+            // Send the message immediately
+            handleSendMessage(msg.text);
+          }}
+          onAnimationEnd={() => {
+            // Now that the animation is over, actually remove it
+            setVisibleSuggestedMessages(currentMessages =>
+              currentMessages.filter(m => m.id !== msg.id)
+            );
+          }}
+        >
+          {msg.text}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
                 <div className="chat-input-area">
                     <input
                         type="text"
@@ -210,7 +306,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
                         placeholder={finalTheme.inputPlaceholder}
                         style={{ borderColor: 'var(--input-border-color)' }}
                     />
-                    <button onClick={handleSendMessage} style={{ backgroundColor: 'var(--primary-color)', color: 'var(--send-button-text-color)' }}>
+                    <button onClick={() => handleSendMessage()} style={{ backgroundColor: 'var(--primary-color)', color: 'var(--send-button-text-color)' }}>
                         Send
                     </button>
                 </div>

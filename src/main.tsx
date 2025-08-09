@@ -20,6 +20,12 @@ export const defaultConfig = {
         showOnlineStatus: true,
         headerIconUrl: 'https://www.svgrepo.com/show/474732/assistant.svg', // Default header icon
         inputPlaceholder: 'Type your message...',
+        suggestedMessages: [ // Optional array of strings
+            'What are your pricing plans?',
+            'How does the chatbot work?',
+            'Can I customize the widget?',
+            'Talk to a human'
+        ],
         openAfterDelay: false,
         openDelaySeconds: 5,
         openOnScroll: false,
