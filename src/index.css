@@ -276,36 +276,68 @@
 
 .message.bot .message-bubble { border-bottom-left-radius: 5px; }
 
+/* REPLACE your existing .chat-input-area and .chat-input-area button rules */
+
 .chat-input-area {
     display: flex;
-    padding: 15px;
-    border-top: 1px solid var(--input-border-color); /* Use variable */
-    background-color: var(--chat-window-bg-color); /* Use variable for consistency */
-    flex-shrink: 0;
+    padding: 0; /* Remove padding from the container */
+    position: relative; /* Allow absolute positioning for the button */
+    align-items: center;
+    border: 1px solid var(--input-border-color);
+    border-radius: 20px; /* This creates the pill shape for the whole container */
+    background-color: var(--chat-window-bg-color);
+    margin: 15px; /* Use margin instead of padding for spacing */
+}
+
+/* === CHAT INPUT AREA STYLES (Final Version) === */
+.chat-input-area {
+    display: flex;
+    position: relative;
+    align-items: center;
+    border: 1px solid var(--input-border-color);
+    border-radius: 20px;
+    margin: 3px 15px 15px 15px;
+    transition: border-color 0.2s ease-in-out; /* <-- ADD THIS LINE */
+}
+
+.chat-input-area:focus-within {
+    border-color: var(--primary-color);
 }
 
 .chat-input-area input {
     flex-grow: 1;
-    border: 1px solid var(--input-border-color); /* Use variable */
-    border-radius: 20px;
-    padding: 10px 15px;
-    margin-right: 10px;
-    font-size: 14px;
-    color: #333; /* Default input text color, can be a variable */
-}
-
-.chat-input-area input::placeholder {
-    color: var(--input-placeholder-color); /* Use variable for placeholder */
-}
-
-.chat-input-area button {
     border: none;
-    border-radius: 20px;
-    padding: 10px 15px;
-    color: var(--send-button-text-color); /* Use variable */
+    background: transparent;
+    padding: 10px 45px 10px 15px;
+    font-size: 14px;
+    color: #333; /* This is for the text you type */
+}
+
+/* This rule now sets the placeholder color */
+.chat-input-area input::placeholder {
+    color: #6e6e6e; /* Set your desired placeholder color here */
+}
+
+.send-icon-button {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    padding: 0;
     cursor: pointer;
-    font-weight: bold;
-    background-color: var(--primary-color); /* Use variable */
+    transition: none;
+}
+
+.send-icon-button:hover {
+    background: transparent;
+}
+
+.send-icon-button img {
+    width: 25px;
+    height: 25px;
+    display: block;
 }
 
 /* Typing indicator */
@@ -317,6 +349,20 @@
     display: inline-block;
     margin: 0 2px;
     animation: bounce 0.6s infinite alternate;
+}
+
+.message.typing-indicator {
+    /* 1. Override the direction to be horizontal */
+    flex-direction: row;
+    align-items: center; /* Vertically center the dots in the bubble */
+
+    /* 2. Add bubble styles for visual consistency */
+    background-color: var(--bot-bubble-color);
+    border-radius: 20px;
+    border-bottom-left-radius: 5px;
+    padding: 10px 15px;
+    width: fit-content; /* Make bubble only as wide as its content */
+    max-width: 80%;
 }
 
 .chat-powered-by {
@@ -350,7 +396,23 @@
     border-top: 1px solid #E4E2E2;
     background-color: white;
     flex-shrink: 0;
+    position: relative;
     /* justify-content: center; */ /* Removed, as it's now on the button wrapper */
+}
+
+.suggested-messages-area::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 40px; /* Sets the width of the fade effect */
+    
+    /* Creates a gradient from transparent to white */
+    background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1) 80%);
+    
+    /* Allows you to click on buttons that are underneath the fade */
+    pointer-events: none; 
 }
 
 /* NEW: Container for the actual suggested message buttons */
@@ -448,4 +510,46 @@
 /* This class will trigger the animation */
 .suggested-message-button.disappearing {
   animation: shrinkAndFadeOut 0.4s ease-out forwards;
+}
+
+/* --- NEW --- */
+/* Style for the "Service unavailable" message bubble */
+.status-message-bubble {
+  position: absolute;
+  bottom: 80px; /* Position above the main bubble button */
+  right: 0;
+  background-color: #333;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  animation: fadeInPopUp 0.3s ease-out forwards;
+}
+
+/* In src/index.css - Add to the end of the file */
+
+/* Modify the main message container */
+.message {
+  display: flex;
+  flex-direction: column; /* Stack bubble and timestamp vertically */
+  margin-bottom: 15px; /* Increase spacing a bit */
+}
+
+/* Align user messages (and timestamp) to the right */
+.message.user {
+  align-items: flex-end;
+}
+
+/* Align bot messages (and timestamp) to the left */
+.message.bot {
+  align-items: flex-start;
+}
+
+/* Style the new timestamp text */
+.message-timestamp {
+  font-size: 11px;
+  color: #999;
+  margin-top: 4px;
+  padding: 0 10px;
 }

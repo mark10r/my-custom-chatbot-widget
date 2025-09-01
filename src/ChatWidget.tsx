@@ -1,20 +1,35 @@
+// src/ChatWidget.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import { defaultConfig } from './main.tsx'; // Ensure this path is correct
 
+// --- MODIFIED ---
+// Add membershipStatus to the component's props
 interface ChatWidgetProps {
     n8nWebhookUrl: string;
     theme: typeof defaultConfig.theme;
     clientId: string;
+    membershipStatus: 'active' | 'inactive';
 }
 
-const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clientId }) => {
+type SuggestedMessage = {
+  id: number;
+  text: string;
+  status: 'visible' | 'disappearing';
+};
+
+const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clientId, membershipStatus }) => {
     // Merge provided theme with defaults to ensure all keys exist
     const finalTheme = { ...defaultConfig.theme, ...theme };
 
+    // --- NEW ---
+    // State to control the visibility of the "unavailable" message
+    const [showStatusMessage, setShowStatusMessage] = useState(false);
+
     // All original state and refs are restored
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string }[]>([]);
+    const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string; timestamp: Date }[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -24,13 +39,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
     const autoOpenTriggeredRef = useRef(false);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const scrollAnimationRef = useRef<number | null>(null);
-    const [visibleSuggestedMessages, setVisibleSuggestedMessages] = useState(
-  (theme.suggestedMessages || []).map((msg, index) => ({
-    id: index,
-    text: msg,
-    status: 'visible' as 'visible' | 'disappearing',
-  }))
-);
+    const [visibleSuggestedMessages, setVisibleSuggestedMessages] = useState<SuggestedMessage[]>(
+        (finalTheme.suggestedMessages || []).map((msg, index) => ({
+            id: index,
+            text: msg,
+             status: 'visible',
+        }))
+    );
 
     // --- THEME APPLICATION ---
     useEffect(() => {
@@ -65,7 +80,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
 
     useEffect(() => {
         if (isOpen && messages.length === 0 && finalTheme.welcomeMessage) {
-            setMessages([{ type: 'bot', text: finalTheme.welcomeMessage }]);
+            setMessages([{ type: 'bot', text: finalTheme.welcomeMessage, timestamp: new Date() }]);
         }
     }, [isOpen, messages.length, finalTheme.welcomeMessage]);
 
@@ -96,7 +111,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
     // --- RESTORED: Page Leave Effect ---
     useEffect(() => {
         const handlePageLeave = () => {
-            if (messages.length > 1 && sessionId) {
+            if (messages.some(msg => msg.type === 'user') && sessionId) {
                 const endOfConversationMessage = "End conversation, send transcript.";
                 const payload = {
                     chatInput: endOfConversationMessage,
@@ -130,87 +145,110 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
         }
     };
 
-    // src/ChatWidget.tsx (inside ChatWidget component)
+    const handleSendMessage = async (messageText?: string) => {
+        const textToSend = messageText || input.trim();
+        if (textToSend === '' || !sessionId) return;
 
-const handleSendMessage = async (messageText?: string) => { // CRITICAL CHANGE: Added optional messageText parameter
-    const textToSend = messageText || input.trim(); // Use messageText if provided, else input state
+        const userMessage = { type: 'user' as const, text: textToSend, timestamp: new Date() };
+        setMessages((prevMessages) => [...prevMessages, userMessage]);
+        setInput('');
+        setIsLoading(true);
 
-    if (textToSend === '' || !sessionId) return; // Validate the text to send
+        try {
+            const response = await fetch(n8nWebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chatInput: userMessage.text, clientId, sessionId }),
+            });
 
-    const userMessage = { type: 'user' as const, text: textToSend }; // Use textToSend for the message object
-    setMessages((prevMessages) => [...prevMessages, userMessage]);
-    setInput(''); // Clear input field after sending
-    setIsLoading(true);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-    try {
-        const response = await fetch(n8nWebhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatInput: userMessage.text, clientId, sessionId }), // Use userMessage.text for payload
-        });
+            const data = await response.json();
+            const botResponseText = data.output || 'Sorry, I could not process your request.';
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            let formattedText = botResponseText;
+            if (typeof marked !== 'undefined') {
+                const parsedResult = marked.parse(botResponseText);
+                formattedText = (parsedResult instanceof Promise) ? await parsedResult : parsedResult;
+            }
+
+            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: formattedText, timestamp: new Date() }]);
+        } catch (error) {
+            console.error('Error sending message to n8n or processing response:', error);
+            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: 'Oops! I had trouble connecting.', timestamp: new Date() }]);
+        } finally {
+            setIsLoading(false);
         }
+    };
 
-        const data = await response.json();
-        const botResponseText = data.output || 'Sorry, I could not process your request.';
-
-        let formattedText = botResponseText;
-        if (typeof marked !== 'undefined') {
-            const parsedResult = marked.parse(botResponseText);
-            formattedText = (parsedResult instanceof Promise) ? await parsedResult : parsedResult;
-        }
-
-        setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: formattedText }]);
-    } catch (error) {
-        console.error('Error sending message to n8n or processing response:', error);
-        setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: 'Oops! I had trouble connecting.' }]);
-    } finally {
-        setIsLoading(false);
-    }
-};
-    
     const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') handleSendMessage();
     };
 
     const stopScrolling = () => {
-    if (scrollAnimationRef.current) {
-        cancelAnimationFrame(scrollAnimationRef.current);
-    }
-};
-
-const startScrolling = (direction: 'left' | 'right') => {
-    stopScrolling(); // Stop any existing scroll first
-    const scrollAmount = direction === 'left' ? -4 : 4; // Scroll 2px per frame
-
-    const scroll = () => {
-        if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollLeft += scrollAmount;
-            scrollAnimationRef.current = requestAnimationFrame(scroll);
+        if (scrollAnimationRef.current) {
+            cancelAnimationFrame(scrollAnimationRef.current);
         }
     };
-    scrollAnimationRef.current = requestAnimationFrame(scroll);
-};
 
-const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!scrollContainerRef.current) return;
-
-    const rect = scrollContainerRef.current.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const scrollZoneWidth = 60; // 60px area on each side triggers scroll
-
-    if (mouseX < scrollZoneWidth) {
-        startScrolling('left');
-    } else if (mouseX > rect.width - scrollZoneWidth) {
-        startScrolling('right');
-    } else {
+    const startScrolling = (direction: 'left' | 'right') => {
         stopScrolling();
-    }
-};
+        const scrollAmount = direction === 'left' ? -4 : 4;
 
-    // --- ORIGINAL JSX WITH MARKDOWN FIX ---
+        const scroll = () => {
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollLeft += scrollAmount;
+                scrollAnimationRef.current = requestAnimationFrame(scroll);
+            }
+        };
+        scrollAnimationRef.current = requestAnimationFrame(scroll);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!scrollContainerRef.current) return;
+
+        const rect = scrollContainerRef.current.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const scrollZoneWidth = 60;
+
+        if (mouseX < scrollZoneWidth) {
+            startScrolling('left');
+        } else if (mouseX > rect.width - scrollZoneWidth) {
+            startScrolling('right');
+        } else {
+            stopScrolling();
+        }
+    };
+
+    // --- NEW: CONDITIONAL RENDERING ---
+    // If the membership status is inactive, render a simplified "unavailable" widget
+    if (membershipStatus === 'inactive') {
+        return (
+            <div className={`chat-widget-container ${finalTheme.buttonPosition || 'bottom-right'}`}>
+                {showStatusMessage && (
+                    <div className="status-message-bubble">
+                        Service unavailable
+                    </div>
+                )}
+                <button
+                    className="chat-bubble-button"
+                    onClick={() => setShowStatusMessage(!showStatusMessage)}
+                    style={{ backgroundColor: '#D32F2F' }} // A distinct error color like red
+                >
+                    <img
+                        src="https://www.svgrepo.com/show/352966/attention.svg"
+                        alt="Attention Icon"
+                        className="chat-icon"
+                    />
+                </button>
+            </div>
+        );
+    }
+
+    // --- ORIGINAL JSX (RENAMED TO ACTIVE WIDGET) ---
+    // If status is 'active', return the full chatbot you built
     return (
         <div className={`chat-widget-container ${finalTheme.buttonPosition}`}>
             {showMiniBubble && (
@@ -249,6 +287,10 @@ const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
                                     <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.text || '') }} />
                                 )}
                             </div>
+                            {/* NEW: Add the timestamp below the bubble */}
+        <span className="message-timestamp">
+            {msg.timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+        </span>
                         </div>
                     ))}
                     {isLoading && (
@@ -261,42 +303,39 @@ const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
                     <div ref={messagesEndRef} />
                 </div>
 
-{/* --- Corrected: Suggested Messages Area with conditional rendering --- */}
-{visibleSuggestedMessages.length > 0 && (
-  <div className="suggested-messages-area">
-    <div
-      ref={scrollContainerRef}                              // <--- ADD THIS LINE
-      onMouseMove={handleMouseMove}                         // <--- ADD THIS LINE
-      onMouseLeave={stopScrolling}                          // <--- ADD THIS LINE
-      className="suggested-messages-button-wrapper"
-    >
-      {visibleSuggestedMessages.map(msg => (
-        <button
-          key={msg.id}
-          className={`suggested-message-button ${msg.status === 'disappearing' ? 'disappearing' : ''}`}
-          onClick={() => {
-            // Don't remove yet, just mark for disappearance
-            setVisibleSuggestedMessages(currentMessages =>
-              currentMessages.map(m =>
-                m.id === msg.id ? { ...m, status: 'disappearing' } : m
-              )
-            );
-            // Send the message immediately
-            handleSendMessage(msg.text);
-          }}
-          onAnimationEnd={() => {
-            // Now that the animation is over, actually remove it
-            setVisibleSuggestedMessages(currentMessages =>
-              currentMessages.filter(m => m.id !== msg.id)
-            );
-          }}
-        >
-          {msg.text}
-        </button>
-      ))}
-    </div>
-  </div>
-)}
+                {visibleSuggestedMessages.length > 0 && (
+                    <div className="suggested-messages-area">
+                        <div
+                            ref={scrollContainerRef}
+                            onMouseMove={handleMouseMove}
+                            onMouseLeave={stopScrolling}
+                            className="suggested-messages-button-wrapper"
+                        >
+                            {visibleSuggestedMessages.map(msg => (
+                                <button
+                                    key={msg.id}
+                                    className={`suggested-message-button ${msg.status === 'disappearing' ? 'disappearing' : ''}`}
+                                    onClick={() => {
+                                        setVisibleSuggestedMessages(currentMessages =>
+                                            currentMessages.map(m =>
+                                                m.id === msg.id ? { ...m, status: 'disappearing' } : m
+                                            )
+                                        );
+                                        handleSendMessage(msg.text);
+                                    }}
+                                    onAnimationEnd={() => {
+                                        setVisibleSuggestedMessages(currentMessages =>
+                                            currentMessages.filter(m => m.id !== msg.id)
+                                        );
+                                    }}
+                                >
+                                    {msg.text}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 <div className="chat-input-area">
                     <input
                         type="text"
@@ -306,9 +345,9 @@ const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
                         placeholder={finalTheme.inputPlaceholder}
                         style={{ borderColor: 'var(--input-border-color)' }}
                     />
-                    <button onClick={() => handleSendMessage()} style={{ backgroundColor: 'var(--primary-color)', color: 'var(--send-button-text-color)' }}>
-                        Send
-                    </button>
+                    <button onClick={() => handleSendMessage()} className="send-icon-button">
+    <img src="https://res.cloudinary.com/dlasog0p4/image/upload/v1756573647/send-svgrepo-com_2_i9iest.svg" alt="Send" />
+</button>
                 </div>
                 {finalTheme.showPoweredByBranding && finalTheme.poweredByText && (
                     <div className="chat-powered-by">
