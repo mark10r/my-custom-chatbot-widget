@@ -4,7 +4,6 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import ChatWidget from './ChatWidget.tsx';
 import './index.css';
-import './App.css';
 
 // Define a default configuration
 export const defaultConfig = {
