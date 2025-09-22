@@ -10,7 +10,7 @@ interface ChatWidgetProps {
     n8nWebhookUrl: string;
     theme: typeof defaultConfig.theme;
     clientId: string;
-    membershipStatus: 'active' | 'inactive';
+    membershipStatus: 'active' | 'inactive' | 'trial';
 }
 
 type SuggestedMessage = {
