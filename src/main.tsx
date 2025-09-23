@@ -43,7 +43,6 @@ export const defaultConfig = {
 };
 
 // --- MOVED TO TOP LEVEL (FIX) ---
-// This declaration must be at the top level of the file.
 declare global {
     interface Window {
         optinbotConfig?: typeof defaultConfig;
@@ -53,11 +52,14 @@ declare global {
 // Function to check membership status from your n8n workflow
 const getMembershipStatus = async (clientId: string): Promise<'active' | 'inactive'> => {
     try {
-        const response = await fetch('https://hooks.optinbot.io/webhook/7e99a537-9bd6-4eb6-8a56-4c80471f1988', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ clientId }),
-        });
+        const response = await fetch(
+            'https://hooks.optinbot.io/webhook/7e99a537-9bd6-4eb6-8a56-4c80471f1988',
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientId }),
+            }
+        );
 
         if (!response.ok) {
             console.error('OptInBot: Could not verify membership status.');
@@ -65,20 +67,24 @@ const getMembershipStatus = async (clientId: string): Promise<'active' | 'inacti
         }
 
         const data = await response.json();
-        
-        // --- FIX: Convert to lowercase for case-insensitive comparison ---
-        // This now correctly handles "Active", "active", or even "ACTIVE"
-        return data.status && data.status.toLowerCase() === 'active' ? 'active' : 'inactive';
 
+        // --- FIX: normalize status and treat "trial" same as "active" ---
+        const normalized = (data.status || '').trim().toLowerCase();
+        console.log('OptInBot: Raw membership status from webhook →', data.status);
+
+        if (normalized === 'active' || normalized === 'trial') {
+            return 'active'; // treat trial as active
+        }
+
+        return 'inactive';
     } catch (error) {
         console.error('OptInBot: Error checking membership status:', error);
         return 'inactive';
     }
 };
 
-// We wrap the main logic in an async function to await the status check
+// Initialize chatbot
 const initializeChatbot = async () => {
-    // Merge default config with client's custom config
     const finalConfig = {
         ...defaultConfig,
         ...window.optinbotConfig,
@@ -96,14 +102,12 @@ const initializeChatbot = async () => {
 
     const membershipStatus = await getMembershipStatus(finalConfig.clientId);
 
-// Inside the initializeChatbot function in main.tsx
-
     const root = createRoot(container);
     root.render(
         <React.StrictMode>
             <ChatWidget
                 n8nWebhookUrl={finalConfig.n8nWebhookUrl}
-                theme={finalConfig.theme} // Changed from finalTheme.theme
+                theme={finalConfig.theme}
                 clientId={finalConfig.clientId}
                 membershipStatus={membershipStatus}
             />
