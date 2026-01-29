@@ -7,7 +7,7 @@ import './index.css';
 
 // Define a default configuration
 export const defaultConfig = {
-    n8nWebhookUrl: 'https://hooks.optinbot.io/webhook/45870825-42b8-4457-aef9-f9ba71d44d1a/chat',
+    n8nWebhookUrl: 'https://hooks.optinbot.io/webhook/a03b69ea-a7c1-4391-877d-8be85c84e7e0/chat',
     theme: {
         primaryColor: '#08788bff',
         userBubbleColor: '#d2f2f7ff',

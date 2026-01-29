@@ -1,11 +1,17 @@
-// src/ChatWidget.tsx
-
 import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import { defaultConfig } from './main.tsx'; // Ensure this path is correct
 
-// --- MODIFIED ---
-// Add membershipStatus to the component's props
+// --- UPDATED: GLOBAL MARKED CONFIGURATION ---
+const renderer = new marked.Renderer();
+
+// Marked now passes a single object as the first argument
+renderer.link = ({ href, title, text }) => {
+    return `<a href="${href}" title="${title || ''}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+};
+
+marked.setOptions({ renderer });
+
 interface ChatWidgetProps {
     n8nWebhookUrl: string;
     theme: typeof defaultConfig.theme;
@@ -14,20 +20,14 @@ interface ChatWidgetProps {
 }
 
 type SuggestedMessage = {
-  id: number;
-  text: string;
-  status: 'visible' | 'disappearing';
+    id: number;
+    text: string;
+    status: 'visible' | 'disappearing';
 };
 
 const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clientId, membershipStatus }) => {
-    // Merge provided theme with defaults to ensure all keys exist
     const finalTheme = { ...defaultConfig.theme, ...theme };
-
-    // --- NEW ---
-    // State to control the visibility of the "unavailable" message
     const [showStatusMessage, setShowStatusMessage] = useState(false);
-
-    // All original state and refs are restored
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string; timestamp: Date }[]>([]);
     const [input, setInput] = useState('');
@@ -43,7 +43,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
         (finalTheme.suggestedMessages || []).map((msg, index) => ({
             id: index,
             text: msg,
-             status: 'visible',
+            status: 'visible',
         }))
     );
 
@@ -64,10 +64,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
         container.style.setProperty('--send-button-text-color', 'white');
         container.style.setProperty('--powered-by-text-color', '#aaaaaa');
         container.style.setProperty('--powered-by-link-color', finalTheme.primaryColor);
-
     }, [finalTheme]);
 
-    // --- ALL ORIGINAL FEATURE EFFECTS (RESTORED & STABILIZED) ---
+    // --- SESSION & AUTO-SCROLL ---
     useEffect(() => {
         if (!sessionId) {
             setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
@@ -78,12 +77,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    // --- WELCOME MESSAGE ---
     useEffect(() => {
         if (isOpen && messages.length === 0 && finalTheme.welcomeMessage) {
             setMessages([{ type: 'bot', text: finalTheme.welcomeMessage, timestamp: new Date() }]);
         }
     }, [isOpen, messages.length, finalTheme.welcomeMessage]);
 
+    // --- DELAYED OPEN & MINI BUBBLE ---
     useEffect(() => {
         if (finalTheme.openAfterDelay && finalTheme.openDelaySeconds !== undefined && !isOpen && !autoOpenTriggeredRef.current) {
             const timer = setTimeout(() => {
@@ -108,13 +109,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
         }
     }, [finalTheme.showWelcomeBubble, finalTheme.welcomeBubbleDelaySeconds, isOpen, showMiniBubble]);
 
-    // --- RESTORED: Page Leave Effect ---
+    // --- PAGE LEAVE EFFECT ---
     useEffect(() => {
         const handlePageLeave = () => {
             if (messages.some(msg => msg.type === 'user') && sessionId) {
-                const endOfConversationMessage = "End conversation, send transcript.";
                 const payload = {
-                    chatInput: endOfConversationMessage,
+                    chatInput: "End conversation, send transcript.",
                     clientId: clientId,
                     sessionId: sessionId,
                     event: 'conversation_ended'
@@ -132,17 +132,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
             }
         };
         window.addEventListener('pagehide', handlePageLeave);
-        return () => {
-            window.removeEventListener('pagehide', handlePageLeave);
-        };
+        return () => window.removeEventListener('pagehide', handlePageLeave);
     }, [messages, sessionId, clientId, n8nWebhookUrl]);
 
-    // --- STABLE CORE HANDLERS ---
+    // --- HANDLERS ---
     const toggleChat = () => {
         setIsOpen(!isOpen);
-        if (!isOpen) {
-            setShowMiniBubble(false);
-        }
+        if (!isOpen) setShowMiniBubble(false);
     };
 
     const handleSendMessage = async (messageText?: string) => {
@@ -161,9 +157,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
                 body: JSON.stringify({ chatInput: userMessage.text, clientId, sessionId }),
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
             const data = await response.json();
             const botResponseText = data.output || 'Sorry, I could not process your request.';
@@ -176,7 +170,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
 
             setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: formattedText, timestamp: new Date() }]);
         } catch (error) {
-            console.error('Error sending message to n8n or processing response:', error);
+            console.error('Error sending message:', error);
             setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: 'Oops! I had trouble connecting.', timestamp: new Date() }]);
         } finally {
             setIsLoading(false);
@@ -187,16 +181,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
         if (e.key === 'Enter') handleSendMessage();
     };
 
+    // --- SCROLLING LOGIC ---
     const stopScrolling = () => {
-        if (scrollAnimationRef.current) {
-            cancelAnimationFrame(scrollAnimationRef.current);
-        }
+        if (scrollAnimationRef.current) cancelAnimationFrame(scrollAnimationRef.current);
     };
 
     const startScrolling = (direction: 'left' | 'right') => {
         stopScrolling();
         const scrollAmount = direction === 'left' ? -4 : 4;
-
         const scroll = () => {
             if (scrollContainerRef.current) {
                 scrollContainerRef.current.scrollLeft += scrollAmount;
@@ -208,47 +200,32 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
 
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!scrollContainerRef.current) return;
-
         const rect = scrollContainerRef.current.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const scrollZoneWidth = 60;
 
-        if (mouseX < scrollZoneWidth) {
-            startScrolling('left');
-        } else if (mouseX > rect.width - scrollZoneWidth) {
-            startScrolling('right');
-        } else {
-            stopScrolling();
-        }
+        if (mouseX < scrollZoneWidth) startScrolling('left');
+        else if (mouseX > rect.width - scrollZoneWidth) startScrolling('right');
+        else stopScrolling();
     };
 
-    // --- NEW: CONDITIONAL RENDERING ---
-    // If the membership status is inactive, render a simplified "unavailable" widget
+    // --- INACTIVE STATE ---
     if (membershipStatus === 'inactive') {
         return (
             <div className={`chat-widget-container ${finalTheme.buttonPosition || 'bottom-right'}`}>
-                {showStatusMessage && (
-                    <div className="status-message-bubble">
-                        Service unavailable
-                    </div>
-                )}
+                {showStatusMessage && <div className="status-message-bubble">Service unavailable</div>}
                 <button
                     className="chat-bubble-button"
                     onClick={() => setShowStatusMessage(!showStatusMessage)}
-                    style={{ backgroundColor: '#D32F2F' }} // A distinct error color like red
+                    style={{ backgroundColor: '#D32F2F' }}
                 >
-                    <img
-                        src="https://www.svgrepo.com/show/352966/attention.svg"
-                        alt="Attention Icon"
-                        className="chat-icon"
-                    />
+                    <img src="https://www.svgrepo.com/show/352966/attention.svg" alt="Attention Icon" className="chat-icon" />
                 </button>
             </div>
         );
     }
 
-    // --- ORIGINAL JSX (RENAMED TO ACTIVE WIDGET) ---
-    // If status is 'active', return the full chatbot you built
+    // --- ACTIVE STATE ---
     return (
         <div className={`chat-widget-container ${finalTheme.buttonPosition}`}>
             {showMiniBubble && (
@@ -287,10 +264,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
                                     <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.text || '') }} />
                                 )}
                             </div>
-                            {/* NEW: Add the timestamp below the bubble */}
-        <span className="message-timestamp">
-            {msg.timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-        </span>
+                            <span className="message-timestamp">
+                                {msg.timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                            </span>
                         </div>
                     ))}
                     {isLoading && (
@@ -317,9 +293,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
                                     className={`suggested-message-button ${msg.status === 'disappearing' ? 'disappearing' : ''}`}
                                     onClick={() => {
                                         setVisibleSuggestedMessages(currentMessages =>
-                                            currentMessages.map(m =>
-                                                m.id === msg.id ? { ...m, status: 'disappearing' } : m
-                                            )
+                                            currentMessages.map(m => m.id === msg.id ? { ...m, status: 'disappearing' } : m)
                                         );
                                         handleSendMessage(msg.text);
                                     }}
@@ -343,11 +317,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
                         onChange={(e) => setInput(e.target.value)}
                         onKeyPress={handleKeyPress}
                         placeholder={finalTheme.inputPlaceholder}
-                        style={{ borderColor: 'var(--input-border-color)' }}
                     />
                     <button onClick={() => handleSendMessage()} className="send-icon-button">
-    <img src="https://res.cloudinary.com/dlasog0p4/image/upload/v1756573647/send-svgrepo-com_2_i9iest.svg" alt="Send" />
-</button>
+                        <img src="https://res.cloudinary.com/dlasog0p4/image/upload/v1756573647/send-svgrepo-com_2_i9iest.svg" alt="Send" />
+                    </button>
                 </div>
                 {finalTheme.showPoweredByBranding && finalTheme.poweredByText && (
                     <div className="chat-powered-by">
