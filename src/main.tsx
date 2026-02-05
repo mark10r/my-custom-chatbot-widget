@@ -49,8 +49,17 @@ declare global {
     }
 }
 
-// Function to check membership status from your n8n workflow
+// Function to check membership status from your n8n workflow with Session Caching
 const getMembershipStatus = async (clientId: string): Promise<'active' | 'inactive'> => {
+    // --- NEW: SESSION CACHE CHECK ---
+    const cacheKey = `optinbot_status_${clientId}`;
+    const cachedStatus = sessionStorage.getItem(cacheKey);
+
+    if (cachedStatus === 'active' || cachedStatus === 'inactive') {
+        console.log(`OptInBot: Using cached status [${cachedStatus}] for client [${clientId}]`);
+        return cachedStatus as 'active' | 'inactive';
+    }
+
     try {
         const response = await fetch(
             'https://hooks.optinbot.io/webhook/7e99a537-9bd6-4eb6-8a56-4c80471f1988',
@@ -72,11 +81,12 @@ const getMembershipStatus = async (clientId: string): Promise<'active' | 'inacti
         const normalized = (data.status || '').trim().toLowerCase();
         console.log('OptInBot: Raw membership status from webhook →', data.status);
 
-        if (normalized === 'active' || normalized === 'trial') {
-            return 'active'; // treat trial as active
-        }
+        const statusResult = (normalized === 'active' || normalized === 'trial') ? 'active' : 'inactive';
 
-        return 'inactive';
+        // --- NEW: SAVE TO SESSION CACHE ---
+        sessionStorage.setItem(cacheKey, statusResult);
+
+        return statusResult;
     } catch (error) {
         console.error('OptInBot: Error checking membership status:', error);
         return 'inactive';
