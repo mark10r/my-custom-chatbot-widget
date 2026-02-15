@@ -14,7 +14,7 @@ export const defaultConfig = {
         botBubbleColor: '#e4e2e2ff',
         buttonPosition: 'bottom-right',
         welcomeMessage: 'Hello! How can I help you? 👋',
-        customIconUrl: 'https://www.svgrepo.com/show/490933/chat.svg',
+        customIconUrl: 'https://res.cloudinary.com/dlasog0p4/image/upload/v1771024412/tt4niyw5bwyif5x26f96.svg',
         headerTitle: 'AI Assistant',
         showOnlineStatus: true,
         headerIconUrl: 'https://www.svgrepo.com/show/474732/assistant.svg',
