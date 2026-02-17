@@ -42,21 +42,17 @@ export const defaultConfig = {
     clientId: 'client_224c8vvrto',
 };
 
-// --- MOVED TO TOP LEVEL (FIX) ---
 declare global {
     interface Window {
-        optinbotConfig?: typeof defaultConfig;
+        optinbotConfig?: typeof defaultConfig & { isPreview?: boolean };
     }
 }
 
-// Function to check membership status from your n8n workflow with Session Caching
 const getMembershipStatus = async (clientId: string): Promise<'active' | 'inactive'> => {
-    // --- NEW: SESSION CACHE CHECK ---
     const cacheKey = `optinbot_status_${clientId}`;
     const cachedStatus = sessionStorage.getItem(cacheKey);
 
     if (cachedStatus === 'active' || cachedStatus === 'inactive') {
-        console.log(`OptInBot: Using cached status [${cachedStatus}] for client [${clientId}]`);
         return cachedStatus as 'active' | 'inactive';
     }
 
@@ -70,30 +66,18 @@ const getMembershipStatus = async (clientId: string): Promise<'active' | 'inacti
             }
         );
 
-        if (!response.ok) {
-            console.error('OptInBot: Could not verify membership status.');
-            return 'inactive';
-        }
+        if (!response.ok) return 'inactive';
 
         const data = await response.json();
-
-        // --- FIX: normalize status and treat "trial" same as "active" ---
         const normalized = (data.status || '').trim().toLowerCase();
-        console.log('OptInBot: Raw membership status from webhook →', data.status);
-
         const statusResult = (normalized === 'active' || normalized === 'trial') ? 'active' : 'inactive';
-
-        // --- NEW: SAVE TO SESSION CACHE ---
         sessionStorage.setItem(cacheKey, statusResult);
-
         return statusResult;
     } catch (error) {
-        console.error('OptInBot: Error checking membership status:', error);
         return 'inactive';
     }
 };
 
-// Initialize chatbot
 const initializeChatbot = async () => {
     const finalConfig = {
         ...defaultConfig,
@@ -105,19 +89,22 @@ const initializeChatbot = async () => {
     };
 
     const container = document.getElementById('optinbot-chatbot-container');
-    if (!container) {
-        console.error('OptInBot: Chatbot container #optinbot-chatbot-container not found.');
-        return;
-    }
+    if (!container) return;
 
     const membershipStatus = await getMembershipStatus(finalConfig.clientId);
 
     /**
-     * --- NEW: PREVIEW MODE DETECTION ---
-     * Checks if the widget is running on your dashboard domain or localhost.
+     * --- ENHANCED PREVIEW MODE DETECTION ---
+     * 1. Explicit flag injected by Dashboard into window.optinbotConfig
+     * 2. URL search params (preview=true)
+     * 3. Document referrer (checks if the parent is the dashboard domain)
+     * 4. Localhost hostname for development
      */
-    const isPreviewMode = window.location.hostname === 'app.optinbot.io' || 
-                          window.location.hostname === 'localhost';
+    const isPreviewMode = 
+        window.optinbotConfig?.isPreview === true || 
+        window.location.search.includes('preview=true') || 
+        document.referrer.includes('app.optinbot.io') || 
+        window.location.hostname === 'localhost';
 
     const root = createRoot(container);
     root.render(
