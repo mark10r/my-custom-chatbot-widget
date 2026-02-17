@@ -140,7 +140,7 @@
     align-items: center;
     justify-content: space-between;
     font-weight: bold;
-    flex-shrink: 0;
+    flex-shrink: 0; /* FIX: Prevent header from shrinking */
     background-color: var(--primary-color);
 }
 
@@ -204,7 +204,7 @@
 .message.bot { justify-content: flex-start; }
 
 .message-bubble {
-    padding: 10px 15px;
+    padding: 12px 16px; /* FIX: Added slightly more padding for readability */
     border-radius: 20px;
     max-width: 80%;
     word-wrap: break-word;
@@ -213,6 +213,11 @@
     background-color: var(--bot-bubble-color);
     color: #333;
 }
+
+/* FIX: Specific spacing for bot bubbles containing markdown elements */
+.message-bubble div > * { margin-bottom: 8px; }
+.message-bubble div > *:last-child { margin-bottom: 0; }
+.message-bubble ul, .message-bubble ol { padding-left: 20px; }
 
 .message-bubble a {
     color: var(--primary-color);
@@ -239,6 +244,7 @@
     transition: border-color 0.2s ease-in-out;
     padding-right: 8px; /* Spacing for the button */
     overflow: hidden;
+    flex-shrink: 0; /* FIX: Prevents container from shrinking when chat is full */
 }
 
 .chat-input-area:focus-within {
@@ -320,7 +326,7 @@
     color: var(--powered-by-text-color);
     background-color: var(--powered-by-bg-color);
     border-top: 1px solid var(--input-border-color);
-    flex-shrink: 0;
+    flex-shrink: 0; /* FIX: Prevents branding area from shrinking */
     width: 100%;
     box-sizing: border-box;
 }
@@ -337,7 +343,7 @@
     gap: 8px;
     border-top: 1px solid #E4E2E2;
     background-color: white;
-    flex-shrink: 0;
+    flex-shrink: 0; /* FIX: Prevents suggestions area from shrinking */
     position: relative;
 }
 
@@ -413,8 +419,8 @@
 .message.bot { align-items: flex-start; }
 
 .message-timestamp {
-  font-size: 11px;
-  color: #999;
-  margin-top: 4px;
-  padding: 0 10px;
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+    padding: 0 10px;
 }
