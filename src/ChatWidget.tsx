@@ -142,7 +142,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         if (isOpen && showMiniBubble) setShowMiniBubble(false);
     }, [finalTheme.showWelcomeBubble, finalTheme.welcomeBubbleDelaySeconds, isOpen, showMiniBubble]);
 
-    // --- EFFECT: TRANSCRIPT AUTOMATION ---
+    // --- EFFECT: PAGE LEAVE AUTOMATION (SILENCED IN PREVIEW) ---
     useEffect(() => {
         const handlePageLeave = () => {
             if (!isPreview && messages.some(msg => msg.type === 'user') && sessionId) {
@@ -168,15 +168,18 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         return () => window.removeEventListener('pagehide', handlePageLeave);
     }, [messages, sessionId, clientId, n8nWebhookUrl, isPreview]);
 
-    // --- AUTO-EXPANDING TEXTAREA LOGIC ---
+    // --- AUTO-EXPANDING TEXTAREA LOGIC WITH SHRINK FIX ---
     useEffect(() => {
         if (textareaRef.current) {
+            // Momentarily set height to a base value to allow scrollHeight calculation to shrink
             textareaRef.current.style.height = '40px'; 
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+            const sh = textareaRef.current.scrollHeight;
+            const newHeight = Math.min(sh, 120);
+            textareaRef.current.style.height = `${newHeight}px`;
         }
     }, [input]);
 
-    // --- SCROLLING HANDLERS ---
+    // --- SMOOTH CONTINUOUS SCROLLING HANDLERS ---
     const stopScrolling = () => {
         if (scrollIntervalRef.current) {
             window.clearInterval(scrollIntervalRef.current);
@@ -186,32 +189,40 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
     const startScrolling = (direction: 'left' | 'right') => {
         if (scrollIntervalRef.current) return;
+       
         scrollIntervalRef.current = window.setInterval(() => {
             if (scrollContainerRef.current) {
                 const step = direction === 'left' ? -4 : 4;
                 scrollContainerRef.current.scrollLeft += step;
             }
-        }, 16);
+        }, 16); 
     };
 
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!scrollContainerRef.current) return;
         const rect = scrollContainerRef.current.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
-        if (mouseX < 60) startScrolling('left');
-        else if (mouseX > rect.width - 60) startScrolling('right');
-        else stopScrolling();
+        const scrollZoneWidth = 60;
+
+        if (mouseX < scrollZoneWidth) {
+            startScrolling('left');
+        } else if (mouseX > rect.width - scrollZoneWidth) {
+            startScrolling('right');
+        } else {
+            stopScrolling();
+        }
     };
 
-    // --- COMMUNICATION HANDLERS ---
+    // --- CORE COMMUNICATION HANDLERS ---
     const handleSendMessage = async (messageText?: string) => {
         const textToSend = messageText || input.trim();
         if (textToSend === '' || !sessionId) return;
 
         const userMessage = { type: 'user' as const, text: textToSend, timestamp: new Date() };
-        setMessages((prev) => [...prev, userMessage]);
+        setMessages((prevMessages) => [...prevMessages, userMessage]);
        
         setInput('');
+        // Reset height immediately on send
         if (textareaRef.current) textareaRef.current.style.height = '40px';
        
         setIsLoading(true);
@@ -229,12 +240,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             const parsedResult = marked.parse(botResponseText);
             formattedText = (parsedResult instanceof Promise) ? await parsedResult : parsedResult;
 
-            setMessages((prev) => [...prev, { type: 'bot', text: formattedText, timestamp: new Date() }]);
+            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: formattedText, timestamp: new Date() }]);
+           
             playNotification();
             triggerTabNotification();
         } catch (error) {
             console.error(error);
-            setMessages((prev) => [...prev, { type: 'bot', text: 'Oops! I had trouble connecting.', timestamp: new Date() }]);
+            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: 'Oops! I had trouble connecting.', timestamp: new Date() }]);
         } finally {
             setIsLoading(false);
         }
@@ -279,7 +291,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 <div className="chat-header">
                     <div className="header-content" style={{ display: 'flex', alignItems: 'center' }}>
                         {finalTheme.headerIconUrl && (
-                            <img src={finalTheme.headerIconUrl} className="header-avatar" alt="Assistant" style={{ width: '30px', height: '30px', borderRadius: '50%', marginRight: '10px', backgroundColor: 'white' }} />
+                            <img
+                                src={finalTheme.headerIconUrl}
+                                className="header-avatar"
+                                alt="Assistant"
+                                style={{ width: '30px', height: '30px', borderRadius: '50%', marginRight: '10px', backgroundColor: 'white' }}
+                            />
                         )}
                         <div className="header-text">
                             <h3 style={{ margin: 0, color: 'white', fontSize: '16px', fontWeight: 'bold' }}>
@@ -294,14 +311,20 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                             )}
                         </div>
                     </div>
-                    <button className="close-button" onClick={toggleChat} style={{ color: 'white' }}>&times;</button>
+                    <button className="close-button" onClick={toggleChat} style={{ color: 'white' }}>
+                        &times;
+                    </button>
                 </div>
 
                 <div className="chat-messages">
                     {messages.map((msg, index) => (
                         <div key={index} className={`message ${msg.type}`}>
                             <div className={`message-bubble ${msg.type}`} style={{ backgroundColor: msg.type === 'user' ? 'var(--user-bubble-color)' : 'var(--bot-bubble-color)'}}>
-                                {msg.type === 'user' ? msg.text : <div dangerouslySetInnerHTML={{ __html: msg.text }} />}
+                                {msg.type === 'user' ? (
+                                    msg.text
+                                ) : (
+                                    <div dangerouslySetInnerHTML={{ __html: msg.text }} />
+                                )}
                             </div>
                             <span className="message-timestamp">
                                 {msg.timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
@@ -319,7 +342,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 </div>
 
                 {visibleSuggestedMessages.length > 0 && (
-                    <div className="suggested-messages-area" onMouseMove={handleMouseMove} onMouseLeave={stopScrolling}>
+                    <div
+                        className="suggested-messages-area"
+                        onMouseMove={handleMouseMove}
+                        onMouseLeave={stopScrolling}
+                    >
                         <div ref={scrollContainerRef} className="suggested-messages-button-wrapper">
                             {visibleSuggestedMessages.map(msg => (
                                 <button
@@ -350,7 +377,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                         onKeyDown={handleKeyPress}
                         placeholder={finalTheme.inputPlaceholder}
                     />
-                    <button onClick={() => handleSendMessage()} className="send-icon-button">
+                    <button
+                        onClick={() => handleSendMessage()}
+                        className="send-icon-button"
+                    >
                         <img src="https://res.cloudinary.com/dlasog0p4/image/upload/v1756573647/send-svgrepo-com_2_i9iest.svg" alt="Send" />
                     </button>
                 </div>

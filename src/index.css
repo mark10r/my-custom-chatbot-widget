@@ -11,7 +11,7 @@
     font-family: Arial, sans-serif;
     font-size: 16px;
     line-height: 1.2;
-    color: #333; /* This will now be a fallback for general widget text */
+    color: #333; 
 
     --input-border-color: #E4E2E2;
 
@@ -140,7 +140,7 @@
     align-items: center;
     justify-content: space-between;
     font-weight: bold;
-    flex-shrink: 0; /* FIX: Prevent header from shrinking */
+    flex-shrink: 0; /* FIX: Prevents header from shrinking */
     background-color: var(--primary-color);
 }
 
@@ -204,7 +204,7 @@
 .message.bot { justify-content: flex-start; }
 
 .message-bubble {
-    padding: 12px 16px; /* FIX: Added slightly more padding for readability */
+    padding: 12px 16px; /* FIX: Reinforced padding */
     border-radius: 20px;
     max-width: 80%;
     word-wrap: break-word;
@@ -265,7 +265,7 @@
     line-height: 20px;
     font-family: inherit;
     overflow-y: auto;
-    transition: height 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    /* TRANSITION REMOVED TO FIX SHRINKING ISSUE */
     display: block;
 }
 
