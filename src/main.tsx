@@ -51,41 +51,28 @@ declare global {
 const getMembershipStatus = async (clientId: string): Promise<'active' | 'inactive'> => {
     const cacheKey = `optinbot_status_${clientId}`;
     const cachedStatus = sessionStorage.getItem(cacheKey);
-
-    if (cachedStatus === 'active' || cachedStatus === 'inactive') {
-        return cachedStatus as 'active' | 'inactive';
-    }
+    if (cachedStatus === 'active' || cachedStatus === 'inactive') return cachedStatus as 'active' | 'inactive';
 
     try {
-        const response = await fetch(
-            'https://hooks.optinbot.io/webhook/7e99a537-9bd6-4eb6-8a56-4c80471f1988',
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ clientId }),
-            }
-        );
-
+        const response = await fetch('https://hooks.optinbot.io/webhook/7e99a537-9bd6-4eb6-8a56-4c80471f1988', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clientId }),
+        });
         if (!response.ok) return 'inactive';
-
         const data = await response.json();
         const normalized = (data.status || '').trim().toLowerCase();
         const statusResult = (normalized === 'active' || normalized === 'trial') ? 'active' : 'inactive';
         sessionStorage.setItem(cacheKey, statusResult);
         return statusResult;
-    } catch (error) {
-        return 'inactive';
-    }
+    } catch (error) { return 'inactive'; }
 };
 
 const initializeChatbot = async () => {
     const finalConfig = {
         ...defaultConfig,
         ...window.optinbotConfig,
-        theme: {
-            ...defaultConfig.theme,
-            ...window.optinbotConfig?.theme,
-        },
+        theme: { ...defaultConfig.theme, ...window.optinbotConfig?.theme },
     };
 
     const container = document.getElementById('optinbot-chatbot-container');
@@ -93,31 +80,47 @@ const initializeChatbot = async () => {
 
     const membershipStatus = await getMembershipStatus(finalConfig.clientId);
 
-    /**
-     * --- ENHANCED PREVIEW MODE DETECTION ---
-     * 1. Explicit flag injected by Dashboard into window.optinbotConfig
-     * 2. URL search params (preview=true)
-     * 3. Document referrer (checks if the parent is the dashboard domain)
-     * 4. Localhost hostname for development
-     */
-    const isPreviewMode = 
-        window.optinbotConfig?.isPreview === true || 
-        window.location.search.includes('preview=true') || 
-        document.referrer.includes('app.optinbot.io') || 
-        window.location.hostname === 'localhost';
+    // --- DETECT PREVIEW MODE ---
+    const isLocal = window.location.hostname === 'localhost';
+    const isDashboardReferrer = document.referrer && document.referrer.includes('optinbot.io');
+    const hasPreviewFlag = window.optinbotConfig?.isPreview === true || window.location.search.includes('preview=true');
+
+    // Combine current signals
+    let isPreviewMode = isLocal || isDashboardReferrer || hasPreviewFlag;
 
     const root = createRoot(container);
-    root.render(
-        <React.StrictMode>
-            <ChatWidget
-                n8nWebhookUrl={finalConfig.n8nWebhookUrl}
-                theme={finalConfig.theme}
-                clientId={finalConfig.clientId}
-                membershipStatus={membershipStatus}
-                isPreview={isPreviewMode} 
-            />
-        </React.StrictMode>
-    );
+    
+    // We wrap this in a tiny component to handle dynamic postMessage updates
+    const AppWrapper = () => {
+        const [preview, setPreview] = React.useState(isPreviewMode);
+
+        React.useEffect(() => {
+            const handleMessage = (event: MessageEvent) => {
+                // Security check: only allow messages from our own domain
+                if (event.origin.includes('optinbot.io') || isLocal) {
+                    if (event.data?.type === 'SET_PREVIEW_MODE') {
+                        setPreview(!!event.data.value);
+                    }
+                }
+            };
+            window.addEventListener('message', handleMessage);
+            return () => window.removeEventListener('message', handleMessage);
+        }, []);
+
+        return (
+            <React.StrictMode>
+                <ChatWidget
+                    n8nWebhookUrl={finalConfig.n8nWebhookUrl}
+                    theme={finalConfig.theme}
+                    clientId={finalConfig.clientId}
+                    membershipStatus={membershipStatus}
+                    isPreview={preview} 
+                />
+            </React.StrictMode>
+        );
+    };
+
+    root.render(<AppWrapper />);
 };
 
 initializeChatbot();

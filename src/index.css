@@ -15,7 +15,6 @@
 
     --input-border-color: #E4E2E2;
 
-
     /* Custom URL variables for images */
     --custom-icon-url: url('https://www.svgrepo.com/show/339963/chat-bot.svg');
     --header-icon-url: url('https://optinbot.io/wp-content/uploads/2025/03/cropped-Untitled-design-17.png');
@@ -41,23 +40,11 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-/* Position the button (no change here, as position is handled by classes) */
-.chat-widget-container.bottom-right {
-    bottom: 40px; /* Moved 10px up from 20px */
-    right: 40px; /* Moved 10px left from 20px */
-}
-.chat-widget-container.bottom-left {
-    bottom: 40px; /* Moved 10px up */
-    left: 40px; /* Moved 10px right */
-}
-.chat-widget-container.top-right {
-    top: 40px; /* Moved 10px down */
-    right: 40px; /* Moved 10px left */
-}
-.chat-widget-container.top-left {
-    top: 40px; /* Moved 10px down */
-    left: 40px; /* Moved 10px right */
-}
+/* Position the button */
+.chat-widget-container.bottom-right { bottom: 40px; right: 40px; }
+.chat-widget-container.bottom-left { bottom: 40px; left: 40px; }
+.chat-widget-container.top-right { top: 40px; right: 40px; }
+.chat-widget-container.top-left { top: 40px; left: 40px; }
 
 .mini-welcome-bubble {
     position: absolute;
@@ -71,26 +58,21 @@
     cursor: pointer;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     z-index: 999;
-
     bottom: 60px;
     right: 30px;
-
     opacity: 0;
     transform: translateY(10px);
     animation: fadeInPopUp 0.5s ease-out forwards;
     animation-delay: 0.5s;
-
-    background-color: var(--welcome-bubble-color); /* Use variable */
-    color: var(--welcome-bubble-text-color); /* Use variable */
+    background-color: var(--welcome-bubble-color);
+    color: var(--welcome-bubble-text-color);
 }
 
-/* Adjust mini bubble position based on main button position (no change) */
 .chat-widget-container.bottom-right .mini-welcome-bubble { bottom: 60px; right: 60px; }
 .chat-widget-container.bottom-left .mini-welcome-bubble { bottom: 60px; left: 60px; }
 .chat-widget-container.top-right .mini-welcome-bubble { top: 60px; right: 60px; }
 .chat-widget-container.top-left .mini-welcome-bubble { top: 60px; left: 60px; }
 
-/* Animation for the mini bubble (no change) */
 @keyframes fadeInPopUp {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -107,8 +89,8 @@
     cursor: pointer;
     box-shadow: 0 4px 8px rgba(12, 12, 12, 0.2);
     transition: transform 0.2s ease-in-out;
-    color: var(--send-button-text-color); /* Use variable */
-    background-color: var(--primary-color); /* Use variable */
+    color: var(--send-button-text-color);
+    background-color: var(--primary-color);
 }
 
 .chat-bubble-button:hover { transform: scale(1.05); }
@@ -123,31 +105,27 @@
     position: fixed;
     width: 400px;
     height: 550px;
-    background-color: var(--chat-window-bg-color); /* Use variable */
+    background-color: var(--chat-window-bg-color);
     border-radius: 10px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 2px solid var(--primary-color); /* Use primary color for border */
-
+    border: 2px solid var(--primary-color);
     transform: scale(0.9);
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
     transition: transform 0.3s ease-out, opacity 0.3s ease-out, visibility 0.3s;
-
     bottom: 90px;
     right: 20px;
 }
 
-/* Position and transform-origin for different button positions (no change) */
 .chat-widget-container.bottom-right .chat-window { right: 40px; bottom: 110px; transform-origin: bottom right; }
 .chat-widget-container.bottom-left .chat-window { left: 40px; bottom: 110px; transform-origin: bottom left; }
 .chat-widget-container.top-right .chat-window { right: 40px; top: 110px; transform-origin: top right; }
 .chat-widget-container.top-left .chat-window { left: 40px; top: 110px; transform-origin: top left; }
 
-/* State when chat window is OPEN: END STATE for the animation (no change) */
 .chat-window.is-open {
     transform: scale(1);
     opacity: 1;
@@ -157,25 +135,21 @@
 
 .chat-header {
     padding: 10px;
-    margin-top: 0px;
-    margin-bottom: 0px;
-    color: var(--header-text-color); /* Use variable */
+    color: var(--header-text-color);
     display: flex;
     align-items: center;
-    justify-content: space-between; /* This will space out the items */
+    justify-content: space-between;
     font-weight: bold;
     flex-shrink: 0;
-    background-color: var(--primary-color); /* Use variable */
+    background-color: var(--primary-color);
 }
 
 .header-avatar {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    margin-right: 0px;
     object-fit: cover;
     flex-shrink: 0;
-    /* content: var(--header-icon-url); */ /* No need for this if setting src in JS */
 }
 
 .chat-header h3 {
@@ -188,7 +162,7 @@
 }
 
 .header-info {
-    flex-grow: 1; /* This new container takes up the space */
+    flex-grow: 1;
     margin: 0 10px;
 }
 
@@ -203,7 +177,7 @@
 .online-dot {
     width: 9px;
     height: 9px;
-    background-color: #28a745; /* A standard 'online' green */
+    background-color: #28a745;
     border-radius: 50%;
     border: 2px solid white;
     margin-right: 6px;
@@ -212,7 +186,7 @@
 .close-button {
     background: none;
     border: none;
-    color: var(--close-button-color); /* Use variable */
+    color: var(--close-button-color);
     font-size: 24px;
     cursor: pointer;
     line-height: 1;
@@ -222,7 +196,7 @@
     flex-grow: 1;
     padding: 15px;
     overflow-y: auto;
-    background-color: #f9f9f9; /* Can be a variable if needed */
+    background-color: #f9f9f9;
 }
 
 .message { display: flex; margin-bottom: 10px; }
@@ -236,98 +210,74 @@
     word-wrap: break-word;
     line-height: 1.4;
     font-size: 15px;
-    background-color: var(--bot-bubble-color); /* Use variable */
-    color: #333; /* Default message text color, can be a variable if needed */
-}
-
-.message-bubble p {
-  margin: 0 0 0.5em 0; /* Add some spacing between paragraphs */
-}
-
-.message-bubble p:last-child {
-  margin-bottom: 0; /* Remove margin from the last paragraph in a bubble */
-}
-
-.message-bubble strong {
-  font-weight: 600; /* Make bold text a bit heavier */
-}
-
-.message-bubble ul,
-.message-bubble ol {
-  padding-left: 20px; /* Indent lists */
-  margin-top: 5px;
-  margin-bottom: 5px;
+    background-color: var(--bot-bubble-color);
+    color: #333;
 }
 
 .message-bubble a {
-    color: var(--primary-color); /* Make links use your theme's primary color */
+    color: var(--primary-color);
     text-decoration: underline;
-}
-
-.message-bubble a:hover {
-    text-decoration: none;
 }
 
 .message.user .message-bubble {
     border-bottom-right-radius: 5px;
-    background-color: var(--user-bubble-color); /* Use variable */
-    color: #333333; /* Can be a variable if needed */
+    background-color: var(--user-bubble-color);
+    color: #333333;
 }
 
 .message.bot .message-bubble { border-bottom-left-radius: 5px; }
 
-/* REPLACE your existing .chat-input-area and .chat-input-area button rules */
-
-.chat-input-area {
-    display: flex;
-    padding: 0; /* Remove padding from the container */
-    position: relative; /* Allow absolute positioning for the button */
-    align-items: center;
-    border: 1px solid var(--input-border-color);
-    border-radius: 20px; /* This creates the pill shape for the whole container */
-    background-color: var(--chat-window-bg-color);
-    margin: 15px; /* Use margin instead of padding for spacing */
-}
-
-/* === CHAT INPUT AREA STYLES (Final Version) === */
+/* === UPDATED CHAT INPUT AREA (FLEXBOX SOLUTION) === */
 .chat-input-area {
     display: flex;
     position: relative;
-    align-items: center;
+    align-items: flex-end; /* Anchors button to bottom */
     border: 1px solid var(--input-border-color);
     border-radius: 20px;
     margin: 3px 15px 15px 15px;
-    transition: border-color 0.2s ease-in-out; /* <-- ADD THIS LINE */
+    background-color: var(--chat-window-bg-color);
+    transition: border-color 0.2s ease-in-out;
+    padding-right: 8px; /* Spacing for the button */
+    overflow: hidden;
 }
 
 .chat-input-area:focus-within {
     border-color: var(--primary-color);
 }
 
-.chat-input-area input {
-    flex-grow: 1;
-    border: none;
+.chat-input-area textarea {
+    flex-grow: 1; /* Takes full width */
+    border: none !important;
+    outline: none !important;
     background: transparent;
-    padding: 10px 45px 10px 15px;
+    padding: 10px 10px 10px 15px; /* Clean padding */
     font-size: 14px;
-    color: #333; /* This is for the text you type */
+    color: #333;
+    resize: none;
+    min-height: 40px;
+    max-height: 120px;
+    line-height: 20px;
+    font-family: inherit;
+    overflow-y: auto;
+    transition: height 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: block;
 }
 
-/* This rule now sets the placeholder color */
-.chat-input-area input::placeholder {
-    color: #6e6e6e; /* Set your desired placeholder color here */
+.chat-input-area textarea::placeholder {
+    color: #6e6e6e;
 }
 
 .send-icon-button {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
+    /* NO LONGER ABSOLUTE: This prevents scrollbar overlap */
     background: transparent;
     border: none;
     padding: 0;
     cursor: pointer;
-    transition: none;
+    flex-shrink: 0; 
+    margin-bottom: 7px; /* Aligns visually with the last line of text */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .send-icon-button:hover {
@@ -344,7 +294,7 @@
 .typing-indicator .dot {
     width: 8px;
     height: 8px;
-    background-color: #bbb; /* Can be a variable */
+    background-color: #bbb;
     border-radius: 50%;
     display: inline-block;
     margin: 0 2px;
@@ -352,16 +302,13 @@
 }
 
 .message.typing-indicator {
-    /* 1. Override the direction to be horizontal */
     flex-direction: row;
-    align-items: center; /* Vertically center the dots in the bubble */
-
-    /* 2. Add bubble styles for visual consistency */
+    align-items: center;
     background-color: var(--bot-bubble-color);
     border-radius: 20px;
     border-bottom-left-radius: 5px;
     padding: 10px 15px;
-    width: fit-content; /* Make bubble only as wide as its content */
+    width: fit-content;
     max-width: 80%;
 }
 
@@ -370,34 +317,28 @@
     text-align: center;
     font-size: 11px;
     font-weight: normal;
-    color: var(--powered-by-text-color); /* Use variable */
-    background-color: var(--powered-by-bg-color); /* Use variable */
-    border-top: 1px solid var(--input-border-color); /* Use variable for consistency */
+    color: var(--powered-by-text-color);
+    background-color: var(--powered-by-bg-color);
+    border-top: 1px solid var(--input-border-color);
     flex-shrink: 0;
     width: 100%;
     box-sizing: border-box;
 }
 
 .chat-powered-by a {
-    color: var(--powered-by-text-color); /* Use variable */
+    color: var(--powered-by-text-color);
     text-decoration: none;
 }
 
-.chat-powered-by a:hover {
-    text-decoration: underline;
-}
-
-/* Container for suggested message buttons */
 .suggested-messages-area {
-    padding: 10px 15px;
-    display: flex; /* Still a flex container */
-    flex-direction: column; /* Stack its direct children (e.g., the button wrapper) */
-    gap: 8px; /* Gap between the suggested messages wrapper and other elements if any */
+    padding: 5px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     border-top: 1px solid #E4E2E2;
     background-color: white;
     flex-shrink: 0;
     position: relative;
-    /* justify-content: center; */ /* Removed, as it's now on the button wrapper */
 }
 
 .suggested-messages-area::after {
@@ -406,35 +347,24 @@
     right: 0;
     top: 0;
     bottom: 0;
-    width: 40px; /* Sets the width of the fade effect */
-    
-    /* Creates a gradient from transparent to white */
+    width: 40px;
     background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1) 80%);
-    
-    /* Allows you to click on buttons that are underneath the fade */
-    pointer-events: none; 
+    pointer-events: none;
 }
 
-/* NEW: Container for the actual suggested message buttons */
 .suggested-messages-button-wrapper {
     display: flex;
-    flex-wrap: nowrap; /* CRITICAL: Forces buttons into a single line */
+    flex-wrap: nowrap;
     gap: 8px;
-    justify-content: flex-start; /* Align buttons to the left */
-    overflow-x: auto; /* Enables horizontal scrolling */
-    padding: 2px 0 8px 0; /* Adds some space, especially at the bottom for aesthetics */
-    
-    /* Hides the scrollbar for a cleaner UI */
-    scrollbar-width: none;  /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding: 2px 0 8px 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
-/* And ADD this new rule right below it to hide the scrollbar in Webkit browsers */
-.suggested-messages-button-wrapper::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, and Opera */
-}
+.suggested-messages-button-wrapper::-webkit-scrollbar { display: none; }
 
-/* Style for individual suggested message buttons */
 .suggested-message-button {
     background-color: #f0f0f0;
     color: #333;
@@ -444,45 +374,14 @@
     font-size: 13px;
     cursor: pointer;
     transition: background-color 0.2s ease, color 0.2s ease;
-    white-space: nowrap; /* This keeps the text on one line, which is correct */
-    flex-shrink: 0; /* Add this to prevent buttons from shrinking */
-    
-    /* We have removed max-width, overflow, and text-overflow */
+    white-space: nowrap;
+    flex-shrink: 0;
 }
+
 .suggested-message-button:hover {
-    background-color: var(--primary-color); /* Use primary color on hover */
-    color: white; /* White text on hover */
+    background-color: var(--primary-color);
+    color: white;
 }
-
-.suggested-messages-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 5px;
-}
-
-.suggested-messages-title {
-    font-size: 14px;
-    color: #666;
-    font-weight: normal;
-}
-
-.suggested-messages-toggle {
-    background: none;
-    border: none;
-    color: #666;
-    font-size: 16px;
-    cursor: pointer;
-    padding: 5px;
-    transition: transform 0.2s ease-in-out;
-}
-
-.suggested-messages-toggle.rotated {
-    transform: rotate(90deg);
-}
-
-.typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes bounce {
     from { transform: translateY(0); }
@@ -490,33 +389,15 @@
 }
 
 @keyframes shrinkAndFadeOut {
-  from {
-    opacity: 1;
-    max-width: 200px; /* Start with a generous max-width */
-    margin-right: 8px; /* Corresponds to your flex gap */
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-  to {
-    opacity: 0;
-    max-width: 0;
-    margin-right: 0;
-    padding-left: 0;
-    padding-right: 0;
-    overflow: hidden; /* Prevent text from showing during shrink */
-  }
+  from { opacity: 1; max-width: 200px; margin-right: 8px; padding-left: 12px; padding-right: 12px; }
+  to { opacity: 0; max-width: 0; margin-right: 0; padding-left: 0; padding-right: 0; overflow: hidden; }
 }
 
-/* This class will trigger the animation */
-.suggested-message-button.disappearing {
-  animation: shrinkAndFadeOut 0.4s ease-out forwards;
-}
+.suggested-message-button.disappearing { animation: shrinkAndFadeOut 0.4s ease-out forwards; }
 
-/* --- NEW --- */
-/* Style for the "Service unavailable" message bubble */
 .status-message-bubble {
   position: absolute;
-  bottom: 80px; /* Position above the main bubble button */
+  bottom: 80px;
   right: 0;
   background-color: #333;
   color: white;
@@ -527,26 +408,10 @@
   animation: fadeInPopUp 0.3s ease-out forwards;
 }
 
-/* In src/index.css - Add to the end of the file */
+.message { display: flex; flex-direction: column; margin-bottom: 15px; }
+.message.user { align-items: flex-end; }
+.message.bot { align-items: flex-start; }
 
-/* Modify the main message container */
-.message {
-  display: flex;
-  flex-direction: column; /* Stack bubble and timestamp vertically */
-  margin-bottom: 15px; /* Increase spacing a bit */
-}
-
-/* Align user messages (and timestamp) to the right */
-.message.user {
-  align-items: flex-end;
-}
-
-/* Align bot messages (and timestamp) to the left */
-.message.bot {
-  align-items: flex-start;
-}
-
-/* Style the new timestamp text */
 .message-timestamp {
   font-size: 11px;
   color: #999;
