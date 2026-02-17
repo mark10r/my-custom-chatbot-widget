@@ -20,6 +20,7 @@ interface ChatWidgetProps {
     theme: typeof defaultConfig.theme;
     clientId: string;
     membershipStatus: 'active' | 'inactive' | 'trial';
+    isPreview?: boolean; // Listener for preview mode
 }
 
 type SuggestedMessage = {
@@ -28,7 +29,13 @@ type SuggestedMessage = {
     status: 'visible' | 'disappearing';
 };
 
-const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clientId, membershipStatus }) => {
+const ChatWidget: React.FC<ChatWidgetProps> = ({ 
+    n8nWebhookUrl, 
+    theme = {}, 
+    clientId, 
+    membershipStatus,
+    isPreview = false // Default to false for live production sites
+}) => {
     const finalTheme = { ...defaultConfig.theme, ...theme };
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string; timestamp: Date }[]>([]);
@@ -145,10 +152,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
         }
     }, [finalTheme.showWelcomeBubble, finalTheme.welcomeBubbleDelaySeconds, isOpen, showMiniBubble]);
 
-    // --- PAGE LEAVE EVENT ---
+    // --- PAGE LEAVE EVENT (Transcript Handling) ---
     useEffect(() => {
         const handlePageLeave = () => {
-            if (messages.some(msg => msg.type === 'user') && sessionId) {
+            // ONLY trigger automation if NOT in preview mode
+            if (!isPreview && messages.some(msg => msg.type === 'user') && sessionId) {
                 const payload = {
                     chatInput: "End conversation, send transcript.",
                     clientId: clientId,
@@ -169,7 +177,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
         };
         window.addEventListener('pagehide', handlePageLeave);
         return () => window.removeEventListener('pagehide', handlePageLeave);
-    }, [messages, sessionId, clientId, n8nWebhookUrl]);
+    }, [messages, sessionId, clientId, n8nWebhookUrl, isPreview]);
 
     // --- HANDLERS ---
     const toggleChat = () => {
@@ -287,7 +295,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ n8nWebhookUrl, theme = {}, clie
                         <div className="message bot typing-indicator">
                             <div className="dot"></div>
                             <div className="dot"></div>
-                            <div className="dot"></div>
+                            <div className="dot = " />
                         </div>
                     )}
                     <div ref={messagesEndRef} />

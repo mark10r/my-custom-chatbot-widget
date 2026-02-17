@@ -112,6 +112,13 @@ const initializeChatbot = async () => {
 
     const membershipStatus = await getMembershipStatus(finalConfig.clientId);
 
+    /**
+     * --- NEW: PREVIEW MODE DETECTION ---
+     * Checks if the widget is running on your dashboard domain or localhost.
+     */
+    const isPreviewMode = window.location.hostname === 'app.optinbot.io' || 
+                          window.location.hostname === 'localhost';
+
     const root = createRoot(container);
     root.render(
         <React.StrictMode>
@@ -120,6 +127,7 @@ const initializeChatbot = async () => {
                 theme={finalConfig.theme}
                 clientId={finalConfig.clientId}
                 membershipStatus={membershipStatus}
+                isPreview={isPreviewMode} 
             />
         </React.StrictMode>
     );
