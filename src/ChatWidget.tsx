@@ -60,6 +60,26 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         }))
     );
 
+    // --- EFFECT: MOBILE SCROLL LOCK ---
+    useEffect(() => {
+        const isMobile = window.innerWidth <= 480;
+        if (isOpen && isMobile) {
+            document.body.style.overflow = 'hidden';
+            // Optional: prevent elastic scrolling on iOS
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+        } else {
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+        };
+    }, [isOpen]);
+
     // --- AUDIO & TAB NOTIFICATIONS ---
     const playNotification = () => {
         try {
@@ -142,7 +162,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         if (isOpen && showMiniBubble) setShowMiniBubble(false);
     }, [finalTheme.showWelcomeBubble, finalTheme.welcomeBubbleDelaySeconds, isOpen, showMiniBubble]);
 
-    // --- EFFECT: PAGE LEAVE AUTOMATION (SILENCED IN PREVIEW) ---
+    // --- EFFECT: PAGE LEAVE AUTOMATION ---
     useEffect(() => {
         const handlePageLeave = () => {
             if (!isPreview && messages.some(msg => msg.type === 'user') && sessionId) {
@@ -168,18 +188,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         return () => window.removeEventListener('pagehide', handlePageLeave);
     }, [messages, sessionId, clientId, n8nWebhookUrl, isPreview]);
 
-    // --- AUTO-EXPANDING TEXTAREA LOGIC WITH SHRINK FIX ---
+    // --- AUTO-EXPANDING TEXTAREA LOGIC ---
     useEffect(() => {
         if (textareaRef.current) {
-            // Momentarily set height to a base value to allow scrollHeight calculation to shrink
-            textareaRef.current.style.height = '40px'; 
+            textareaRef.current.style.height = 'auto'; 
             const sh = textareaRef.current.scrollHeight;
             const newHeight = Math.min(sh, 120);
             textareaRef.current.style.height = `${newHeight}px`;
         }
     }, [input]);
 
-    // --- SMOOTH CONTINUOUS SCROLLING HANDLERS ---
+    // --- SMOOTH CONTINUOUS SCROLLING HANDLERS (DESKTOP ONLY) ---
     const stopScrolling = () => {
         if (scrollIntervalRef.current) {
             window.clearInterval(scrollIntervalRef.current);
@@ -189,7 +208,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
     const startScrolling = (direction: 'left' | 'right') => {
         if (scrollIntervalRef.current) return;
-       
         scrollIntervalRef.current = window.setInterval(() => {
             if (scrollContainerRef.current) {
                 const step = direction === 'left' ? -4 : 4;
@@ -199,6 +217,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     };
 
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        // Desktop check: Only auto-scroll if no touch events are active
         if (!scrollContainerRef.current) return;
         const rect = scrollContainerRef.current.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
@@ -222,7 +241,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         setMessages((prevMessages) => [...prevMessages, userMessage]);
        
         setInput('');
-        // Reset height immediately on send
         if (textareaRef.current) textareaRef.current.style.height = '40px';
        
         setIsLoading(true);
@@ -275,7 +293,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
 
     return (
-        <div className={`chat-widget-container ${finalTheme.buttonPosition}`}>
+        <div className={`chat-widget-container ${finalTheme.buttonPosition} ${isOpen ? 'mobile-open' : ''}`}>
             {showMiniBubble && (
                 <div className="mini-welcome-bubble" onClick={toggleChat}>
                     <span>{finalTheme.welcomeBubbleText}</span>
@@ -287,7 +305,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             </button>
 
             <div className={`chat-window ${isOpen ? 'is-open' : 'is-closed'}`} style={{ borderColor: 'var(--primary-color)' }}>
-                {/* HEADER */}
                 <div className="chat-header">
                     <div className="header-content" style={{ display: 'flex', alignItems: 'center' }}>
                         {finalTheme.headerIconUrl && (

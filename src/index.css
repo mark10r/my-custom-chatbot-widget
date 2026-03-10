@@ -2,7 +2,6 @@
 
 /* Define CSS Variables on the root container for easy access */
 .chat-widget-container {
-    /* Base reset properties (no change) */
     all: unset;
     display: block;
     box-sizing: border-box;
@@ -20,7 +19,6 @@
     --header-icon-url: url('https://optinbot.io/wp-content/uploads/2025/03/cropped-Untitled-design-17.png');
 }
 
-/* Ensure all elements within the widget inherit box-sizing and apply basic resets */
 .chat-widget-container *,
 .chat-widget-container *::before,
 .chat-widget-container *::after {
@@ -140,7 +138,7 @@
     align-items: center;
     justify-content: space-between;
     font-weight: bold;
-    flex-shrink: 0; /* FIX: Prevents header from shrinking */
+    flex-shrink: 0; 
     background-color: var(--primary-color);
 }
 
@@ -204,7 +202,7 @@
 .message.bot { justify-content: flex-start; }
 
 .message-bubble {
-    padding: 12px 16px; /* FIX: Reinforced padding */
+    padding: 12px 16px; 
     border-radius: 20px;
     max-width: 80%;
     word-wrap: break-word;
@@ -214,7 +212,6 @@
     color: #333;
 }
 
-/* FIX: Specific spacing for bot bubbles containing markdown elements */
 .message-bubble div > * { margin-bottom: 8px; }
 .message-bubble div > *:last-child { margin-bottom: 0; }
 .message-bubble ul, .message-bubble ol { padding-left: 20px; }
@@ -232,19 +229,18 @@
 
 .message.bot .message-bubble { border-bottom-left-radius: 5px; }
 
-/* === UPDATED CHAT INPUT AREA (FLEXBOX SOLUTION) === */
 .chat-input-area {
     display: flex;
     position: relative;
-    align-items: flex-end; /* Anchors button to bottom */
+    align-items: flex-end; 
     border: 1px solid var(--input-border-color);
     border-radius: 20px;
     margin: 3px 15px 15px 15px;
     background-color: var(--chat-window-bg-color);
     transition: border-color 0.2s ease-in-out;
-    padding-right: 8px; /* Spacing for the button */
+    padding-right: 8px; 
     overflow: hidden;
-    flex-shrink: 0; /* FIX: Prevents container from shrinking when chat is full */
+    flex-shrink: 0; 
 }
 
 .chat-input-area:focus-within {
@@ -252,11 +248,11 @@
 }
 
 .chat-input-area textarea {
-    flex-grow: 1; /* Takes full width */
+    flex-grow: 1; 
     border: none !important;
     outline: none !important;
     background: transparent;
-    padding: 10px 10px 10px 15px; /* Clean padding */
+    padding: 10px 10px 10px 15px; 
     font-size: 14px;
     color: #333;
     resize: none;
@@ -265,7 +261,6 @@
     line-height: 20px;
     font-family: inherit;
     overflow-y: auto;
-    /* TRANSITION REMOVED TO FIX SHRINKING ISSUE */
     display: block;
 }
 
@@ -274,13 +269,12 @@
 }
 
 .send-icon-button {
-    /* NO LONGER ABSOLUTE: This prevents scrollbar overlap */
     background: transparent;
     border: none;
     padding: 0;
     cursor: pointer;
     flex-shrink: 0; 
-    margin-bottom: 7px; /* Aligns visually with the last line of text */
+    margin-bottom: 7px; 
     display: flex;
     align-items: center;
     justify-content: center;
@@ -326,7 +320,7 @@
     color: var(--powered-by-text-color);
     background-color: var(--powered-by-bg-color);
     border-top: 1px solid var(--input-border-color);
-    flex-shrink: 0; /* FIX: Prevents branding area from shrinking */
+    flex-shrink: 0; 
     width: 100%;
     box-sizing: border-box;
 }
@@ -343,7 +337,7 @@
     gap: 8px;
     border-top: 1px solid #E4E2E2;
     background-color: white;
-    flex-shrink: 0; /* FIX: Prevents suggestions area from shrinking */
+    flex-shrink: 0; 
     position: relative;
 }
 
@@ -367,6 +361,10 @@
     padding: 2px 0 8px 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    
+    /* FIX: Enable native touch scrolling momentum for mobile */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
 }
 
 .suggested-messages-button-wrapper::-webkit-scrollbar { display: none; }
@@ -423,4 +421,24 @@
     color: #999;
     margin-top: 4px;
     padding: 0 10px;
+}
+
+/* === MOBILE FULL SCREEN OVERRIDE === */
+@media (max-width: 480px) {
+    .chat-widget-container.mobile-open .chat-bubble-button {
+        display: none;
+    }
+
+    .chat-widget-container.mobile-open .chat-window.is-open {
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+    }
 }
