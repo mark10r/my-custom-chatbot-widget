@@ -44,7 +44,7 @@ export const defaultConfig = {
 
 declare global {
     interface Window {
-        optinbotConfig?: typeof defaultConfig & { isPreview?: boolean };
+        optinbotConfig?: typeof defaultConfig & { chatbotId?: string; isPreview?: boolean };
     }
 }
 
@@ -54,7 +54,7 @@ const getMembershipStatus = async (clientId: string): Promise<'active' | 'inacti
     if (cachedStatus === 'active' || cachedStatus === 'inactive') return cachedStatus as 'active' | 'inactive';
 
     try {
-        const response = await fetch('https://hooks.optinbot.io/webhook/7e99a537-9bd6-4eb6-8a56-4c80471f1988', {
+        const response = await fetch('https://app.optinbot.io/api/membership', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ clientId }),
@@ -78,8 +78,6 @@ const initializeChatbot = async () => {
     const container = document.getElementById('optinbot-chatbot-container');
     if (!container) return;
 
-    const membershipStatus = await getMembershipStatus(finalConfig.clientId);
-
     // --- DETECT PREVIEW MODE ---
     const isLocal = window.location.hostname === 'localhost';
     const isDashboardReferrer = document.referrer && document.referrer.includes('optinbot.io');
@@ -87,6 +85,9 @@ const initializeChatbot = async () => {
 
     // Combine current signals
     let isPreviewMode = isLocal || isDashboardReferrer || hasPreviewFlag;
+
+    // Skip membership API call in preview/local mode — trial may be expired for test accounts
+    const membershipStatus = isPreviewMode ? 'active' : await getMembershipStatus(finalConfig.clientId);
 
     const root = createRoot(container);
     
@@ -113,8 +114,9 @@ const initializeChatbot = async () => {
                     n8nWebhookUrl={finalConfig.n8nWebhookUrl}
                     theme={finalConfig.theme}
                     clientId={finalConfig.clientId}
+                    chatbotId={window.optinbotConfig?.chatbotId ?? ''}
                     membershipStatus={membershipStatus}
-                    isPreview={preview} 
+                    isPreview={preview}
                 />
             </React.StrictMode>
         );

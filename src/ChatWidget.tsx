@@ -16,6 +16,7 @@ interface ChatWidgetProps {
     n8nWebhookUrl: string;
     theme: typeof defaultConfig.theme;
     clientId: string;
+    chatbotId: string;
     membershipStatus: 'active' | 'inactive' | 'trial';
     isPreview?: boolean;
 }
@@ -30,6 +31,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     n8nWebhookUrl,
     theme = {},
     clientId,
+    chatbotId,
     membershipStatus,
     isPreview = false
 }) => {
@@ -96,15 +98,49 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         }
     };
 
+    // --- EFFECT: FLUSH PENDING CONVERSATION PAYLOADS ---
+    useEffect(() => {
+        const PREFIX = 'optinbot_pending_end_';
+        const keys = Object.keys(localStorage).filter(k => k.startsWith(PREFIX));
+        for (const key of keys) {
+            try {
+                const stored = JSON.parse(localStorage.getItem(key) || '');
+                if (!stored.n8nWebhookUrl) { localStorage.removeItem(key); continue; }
+                fetch(stored.n8nWebhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chatInput: stored.chatInput, clientId: stored.clientId, sessionId: stored.sessionId, event: stored.event }),
+                }).then(res => { if (res.ok) localStorage.removeItem(key); }).catch(() => {});
+            } catch {
+                localStorage.removeItem(key);
+            }
+        }
+    }, []);
+
     // --- EFFECT: INITIALIZE SESSION & CLEANUP ---
     useEffect(() => {
         if (!sessionId) {
-            setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+            fetch('https://app.optinbot.io/api/session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientId }),
+            })
+                .then(res => res.ok ? res.json() : null)
+                .then(data => {
+                    if (data?.sessionId) {
+                        setSessionId(data.sessionId);
+                    } else {
+                        setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+                    }
+                })
+                .catch(() => {
+                    setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+                });
         }
         return () => {
             if (scrollIntervalRef.current) window.clearInterval(scrollIntervalRef.current);
         };
-    }, [sessionId]);
+    }, [sessionId, clientId]);
 
     // --- EFFECT: THEME & VISIBILITY ---
     useEffect(() => {
@@ -169,14 +205,19 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 const payload = {
                     chatInput: "End conversation, send transcript.",
                     clientId: clientId,
+                    chatbotId: chatbotId,
                     sessionId: sessionId,
-                    event: 'conversation_ended'
+                    event: 'conversation_ended',
+                    n8nWebhookUrl: n8nWebhookUrl,
                 };
+                try {
+                    localStorage.setItem(`optinbot_pending_end_${sessionId}`, JSON.stringify(payload));
+                } catch { /* localStorage unavailable */ }
                 try {
                     fetch(n8nWebhookUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload),
+                        body: JSON.stringify({ chatInput: payload.chatInput, clientId: payload.clientId, chatbotId: payload.chatbotId, sessionId: payload.sessionId, event: payload.event }),
                         keepalive: true
                     });
                 } catch (e) {
@@ -249,7 +290,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             const response = await fetch(n8nWebhookUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chatInput: userMessage.text, clientId, sessionId }),
+                body: JSON.stringify({ chatInput: userMessage.text, clientId, chatbotId, sessionId }),
             });
             const data = await response.json();
             const botResponseText = data.output || 'Sorry, I could not process your request.';
@@ -402,7 +443,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     </button>
                 </div>
                
-                {finalTheme.showPoweredByBranding && finalTheme.poweredByText && (
+                {(finalTheme.showPoweredByBranding || membershipStatus === 'trial') && finalTheme.poweredByText && (
                     <div className="chat-powered-by">
                         {finalTheme.poweredByUrl ? (
                             <a href={finalTheme.poweredByUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--powered-by-link-color)' }}>
