@@ -28,7 +28,7 @@ type SuggestedMessage = {
 };
 
 const ChatWidget: React.FC<ChatWidgetProps> = ({
-    n8nWebhookUrl,
+    n8nWebhookUrl: _n8nWebhookUrl,
     theme = {},
     clientId,
     chatbotId,
@@ -105,11 +105,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         for (const key of keys) {
             try {
                 const stored = JSON.parse(localStorage.getItem(key) || '');
-                if (!stored.n8nWebhookUrl) { localStorage.removeItem(key); continue; }
-                fetch(stored.n8nWebhookUrl, {
+                if (!stored.chatInput) { localStorage.removeItem(key); continue; }
+                fetch('https://app.optinbot.io/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chatInput: stored.chatInput, clientId: stored.clientId, sessionId: stored.sessionId, event: stored.event }),
+                    body: JSON.stringify({ chatInput: stored.chatInput, clientId: stored.clientId, chatbotId: stored.chatbotId, sessionId: stored.sessionId, event: stored.event }),
                 }).then(res => { if (res.ok) localStorage.removeItem(key); }).catch(() => {});
             } catch {
                 localStorage.removeItem(key);
@@ -214,13 +214,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     chatbotId: chatbotId,
                     sessionId: sessionId,
                     event: 'conversation_ended',
-                    n8nWebhookUrl: n8nWebhookUrl,
                 };
                 try {
                     localStorage.setItem(`optinbot_pending_end_${sessionId}`, JSON.stringify(payload));
                 } catch { /* localStorage unavailable */ }
                 try {
-                    fetch(n8nWebhookUrl, {
+                    fetch('https://app.optinbot.io/api/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ chatInput: payload.chatInput, clientId: payload.clientId, chatbotId: payload.chatbotId, sessionId: payload.sessionId, event: payload.event }),
@@ -233,7 +232,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         };
         window.addEventListener('pagehide', handlePageLeave);
         return () => window.removeEventListener('pagehide', handlePageLeave);
-    }, [messages, sessionId, clientId, n8nWebhookUrl, isPreview]);
+    }, [messages, sessionId, clientId, isPreview]);
 
     // --- AUTO-EXPANDING TEXTAREA LOGIC ---
     useEffect(() => {
@@ -293,7 +292,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         setIsLoading(true);
 
         try {
-            const response = await fetch(n8nWebhookUrl, {
+            const response = await fetch('https://app.optinbot.io/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ chatInput: userMessage.text, clientId, chatbotId, sessionId }),
