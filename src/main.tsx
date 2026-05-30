@@ -7,7 +7,6 @@ import './index.css';
 
 // Define a default configuration
 export const defaultConfig = {
-    n8nWebhookUrl: 'https://hooks.optinbot.io/webhook/a03b69ea-a7c1-4391-877d-8be85c84e7e0/chat',
     theme: {
         primaryColor: '#08788bff',
         userBubbleColor: '#d2f2f7ff',
@@ -111,7 +110,7 @@ const initializeChatbot = async () => {
         return (
             <React.StrictMode>
                 <ChatWidget
-                    n8nWebhookUrl={finalConfig.n8nWebhookUrl}
+                    n8nWebhookUrl=""
                     theme={finalConfig.theme}
                     clientId={finalConfig.clientId}
                     chatbotId={window.optinbotConfig?.chatbotId ?? ''}
