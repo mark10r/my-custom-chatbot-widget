@@ -205,7 +205,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 const stripHtml = (html: string) =>
                     html.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
                 const lines = messages.map(msg =>
-                    `${msg.type === 'user' ? 'User' : 'Agent'}: ${msg.type === 'bot' ? stripHtml(msg.text) : msg.text}`
+                    `**${msg.type === 'user' ? 'User' : 'Agent'}:** ${msg.type === 'bot' ? stripHtml(msg.text) : msg.text}`
                 );
                 const transcript = `Chatbot ID: ${chatbotId}\nSession ID: ${sessionId}\n\n${lines.join('\n')}`;
                 const payload = {
