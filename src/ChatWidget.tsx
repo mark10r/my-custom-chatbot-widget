@@ -203,7 +203,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         const handlePageLeave = () => {
             if (!isPreview && messages.some(msg => msg.type === 'user') && sessionId) {
                 const stripHtml = (html: string) =>
-                    html.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+                    html.replace(/<[^>]*>/g, '').replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(parseInt(code, 10))).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").trim();
                 const lines = messages.map(msg =>
                     `**${msg.type === 'user' ? 'User' : 'Agent'}:** ${msg.type === 'bot' ? stripHtml(msg.text) : msg.text}`
                 );
@@ -298,7 +298,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 body: JSON.stringify({ chatInput: userMessage.text, clientId, chatbotId, sessionId }),
             });
             const data = await response.json();
-            const botResponseText = data.output || 'Sorry, I could not process your request.';
+            const rawResponse = data.output || 'Sorry, I could not process your request.';
+            const botResponseText = rawResponse
+                .replace(/&#(\d+);/g, (_: string, code: string) => String.fromCharCode(parseInt(code, 10)))
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&apos;/g, "'");
 
             let formattedText = botResponseText;
             const parsedResult = marked.parse(botResponseText);
