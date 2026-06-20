@@ -39,7 +39,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
    
     // State
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string; timestamp: Date }[]>([]);
+    const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string; timestamp: Date; actions?: Array<{ label: string; url: string }> }[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
@@ -311,7 +311,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             const parsedResult = marked.parse(botResponseText);
             formattedText = (parsedResult instanceof Promise) ? await parsedResult : parsedResult;
 
-            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: formattedText, timestamp: new Date() }]);
+            const actions = Array.isArray(data.actions) ? data.actions : undefined;
+            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: formattedText, timestamp: new Date(), actions }]);
            
             playNotification();
             triggerTabNotification();
@@ -396,6 +397,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                     <div dangerouslySetInnerHTML={{ __html: msg.text }} />
                                 )}
                             </div>
+                            {msg.type === 'bot' && msg.actions && msg.actions.length > 0 && (
+                                <div className="message-action-buttons">
+                                    {msg.actions.map((action, i) => (
+                                        <a key={i} href={action.url} target="_blank" rel="noopener noreferrer" className="message-action-button">
+                                            {action.label}
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
                             <span className="message-timestamp">
                                 {msg.timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                             </span>
