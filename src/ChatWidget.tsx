@@ -394,18 +394,20 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                 {msg.type === 'user' ? (
                                     msg.text
                                 ) : (
-                                    <div dangerouslySetInnerHTML={{ __html: msg.text }} />
+                                    <>
+                                        <div dangerouslySetInnerHTML={{ __html: msg.text }} />
+                                        {msg.actions && msg.actions.length > 0 && (
+                                            <div className="message-action-buttons">
+                                                {msg.actions.map((action, i) => (
+                                                    <a key={i} href={action.url} target="_blank" rel="noopener noreferrer" className="message-action-button">
+                                                        {action.label}
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
-                            {msg.type === 'bot' && msg.actions && msg.actions.length > 0 && (
-                                <div className="message-action-buttons">
-                                    {msg.actions.map((action, i) => (
-                                        <a key={i} href={action.url} target="_blank" rel="noopener noreferrer" className="message-action-button">
-                                            {action.label}
-                                        </a>
-                                    ))}
-                                </div>
-                            )}
                             <span className="message-timestamp">
                                 {msg.timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                             </span>
