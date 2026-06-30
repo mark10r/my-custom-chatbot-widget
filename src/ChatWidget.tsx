@@ -187,6 +187,42 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }, [finalTheme.openAfterDelay, finalTheme.openDelaySeconds, isOpen]);
 
     useEffect(() => {
+        if (!finalTheme.openOnScroll || isOpen || autoOpenTriggeredRef.current) return;
+
+        const getScrollPercent = () => {
+            const el = document.documentElement;
+            const body = document.body;
+            const scrollTop = window.scrollY ?? el.scrollTop ?? body.scrollTop ?? 0;
+            const scrollHeight = Math.max(
+                el.scrollHeight, body.scrollHeight,
+                el.offsetHeight, body.offsetHeight,
+                el.clientHeight, body.clientHeight
+            );
+            const clientHeight = window.innerHeight || el.clientHeight;
+            const total = scrollHeight - clientHeight;
+            if (total <= 0) return 100;
+            return (scrollTop / total) * 100;
+        };
+
+        const threshold = finalTheme.openOnScrollThreshold ?? 50;
+
+        const handleScroll = () => {
+            if (autoOpenTriggeredRef.current) return;
+            if (getScrollPercent() >= threshold) {
+                setIsOpen(true);
+                autoOpenTriggeredRef.current = true;
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        document.addEventListener('scroll', handleScroll, { passive: true });
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            document.removeEventListener('scroll', handleScroll);
+        };
+    }, [finalTheme.openOnScroll, finalTheme.openOnScrollThreshold, isOpen]);
+
+    useEffect(() => {
         if (finalTheme.showWelcomeBubble && !miniBubbleTriggeredRef.current && !isOpen) {
             const delay = finalTheme.welcomeBubbleDelaySeconds !== undefined ? finalTheme.welcomeBubbleDelaySeconds : 1;
             const timer = setTimeout(() => {
