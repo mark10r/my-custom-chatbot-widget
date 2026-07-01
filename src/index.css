@@ -423,31 +423,6 @@
     padding: 0 10px;
 }
 
-.message-action-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 8px;
-    padding: 0 2px;
-}
-
-.message-action-button {
-    display: inline-block;
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    background-color: var(--primary-color);
-    color: #fff !important;
-    text-decoration: none !important;
-    transition: opacity 0.15s;
-    cursor: pointer;
-    border: none;
-}
-
-.message-action-button:hover {
-    opacity: 0.85;
-}
 
 /* === MOBILE FULL SCREEN OVERRIDE === */
 @media (max-width: 480px) {

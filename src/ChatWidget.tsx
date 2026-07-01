@@ -39,7 +39,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
    
     // State
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string; timestamp: Date; actions?: Array<{ label: string; url: string }> }[]>([]);
+    const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string; timestamp: Date }[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
@@ -347,8 +347,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             const parsedResult = marked.parse(botResponseText);
             formattedText = (parsedResult instanceof Promise) ? await parsedResult : parsedResult;
 
-            const actions = Array.isArray(data.actions) ? data.actions : undefined;
-            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: formattedText, timestamp: new Date(), actions }]);
+            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: formattedText, timestamp: new Date() }]);
            
             playNotification();
             triggerTabNotification();
@@ -430,18 +429,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                 {msg.type === 'user' ? (
                                     msg.text
                                 ) : (
-                                    <>
-                                        <div dangerouslySetInnerHTML={{ __html: msg.text }} />
-                                        {msg.actions && msg.actions.length > 0 && (
-                                            <div className="message-action-buttons">
-                                                {msg.actions.map((action, i) => (
-                                                    <a key={i} href={action.url} target="_blank" rel="noopener noreferrer" className="message-action-button">
-                                                        {action.label}
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </>
+                                    <div dangerouslySetInnerHTML={{ __html: msg.text }} />
                                 )}
                             </div>
                             <span className="message-timestamp">
