@@ -43,7 +43,12 @@ export const defaultConfig = {
 
 declare global {
     interface Window {
-        optinbotConfig?: typeof defaultConfig & { chatbotId?: string; isPreview?: boolean };
+        optinbotConfig?: {
+            theme?: Partial<typeof defaultConfig.theme>;
+            clientId?: string;
+            chatbotId?: string;
+            isPreview?: boolean;
+        };
     }
 }
 
@@ -67,13 +72,22 @@ const getMembershipStatus = async (clientId: string): Promise<'active' | 'inacti
     } catch (error) { return 'inactive'; }
 };
 
-const initializeChatbot = async () => {
-    const finalConfig = {
-        ...defaultConfig,
-        ...window.optinbotConfig,
-        theme: { ...defaultConfig.theme, ...window.optinbotConfig?.theme },
-    };
+// Fetch the saved theme from the dashboard so embed codes never need updating.
+// Returns null on any failure — the widget falls back to inline/default theme.
+const fetchRemoteTheme = async (chatbotId: string): Promise<Partial<typeof defaultConfig.theme> | null> => {
+    try {
+        const response = await fetch('https://app.optinbot.io/api/widget-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chatbotId }),
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.theme && typeof data.theme === 'object' ? data.theme : null;
+    } catch { return null; }
+};
 
+const initializeChatbot = async () => {
     const container = document.getElementById('optinbot-chatbot-container');
     if (!container) return;
 
@@ -85,8 +99,27 @@ const initializeChatbot = async () => {
     // Combine current signals
     let isPreviewMode = isLocal || isDashboardReferrer || hasPreviewFlag;
 
-    // Skip membership API call in preview/local mode — trial may be expired for test accounts
-    const membershipStatus = isPreviewMode ? 'active' : await getMembershipStatus(finalConfig.clientId);
+    const clientId = window.optinbotConfig?.clientId ?? defaultConfig.clientId;
+    const chatbotId = window.optinbotConfig?.chatbotId ?? '';
+
+    // In preview mode the dashboard passes live (unsaved) edits inline — the
+    // remote saved theme must not override them, so skip the fetch.
+    // Membership check is also skipped — trial may be expired for test accounts.
+    const [membershipStatus, remoteTheme] = isPreviewMode
+        ? (['active', null] as const)
+        : await Promise.all([
+            getMembershipStatus(clientId),
+            chatbotId ? fetchRemoteTheme(chatbotId) : Promise.resolve(null),
+        ]);
+
+    const finalConfig = {
+        ...defaultConfig,
+        ...window.optinbotConfig,
+        clientId,
+        // Remote (saved) theme wins over inline theme so dashboard edits take
+        // effect even on old embeds that still carry a full inline theme.
+        theme: { ...defaultConfig.theme, ...window.optinbotConfig?.theme, ...remoteTheme },
+    };
 
     const root = createRoot(container);
     
