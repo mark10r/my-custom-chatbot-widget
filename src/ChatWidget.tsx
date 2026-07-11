@@ -39,11 +39,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
    
     // State
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<{ type: 'user' | 'bot'; text: string; timestamp: Date }[]>([]);
+    const [messages, setMessages] = useState<{ type: 'user' | 'bot' | 'rating'; text: string; timestamp: Date; rating?: 'up' | 'down'; feedback?: string }[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [showMiniBubble, setShowMiniBubble] = useState(false);
+    const [showRatingCard, setShowRatingCard] = useState(false);
+    const [selectedRating, setSelectedRating] = useState<'up' | 'down' | null>(null);
+    const [feedbackText, setFeedbackText] = useState('');
+    const [hasRated, setHasRated] = useState(false);
    
     // Refs
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -240,9 +244,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             if (!isPreview && messages.some(msg => msg.type === 'user') && sessionId) {
                 const stripHtml = (html: string) =>
                     html.replace(/<[^>]*>/g, '').replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(parseInt(code, 10))).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").trim();
-                const lines = messages.map(msg =>
-                    `**${msg.type === 'user' ? 'User' : 'Agent'}:** ${msg.type === 'bot' ? stripHtml(msg.text) : msg.text}`
-                );
+                const lines = messages.map(msg => {
+                    if (msg.type === 'rating') {
+                        const label = msg.rating === 'up' ? '👍 Helpful' : '👎 Not Helpful';
+                        return `\n--- Visitor rated this chat ---\nRating: ${label}${msg.feedback ? `\nFeedback: "${msg.feedback}"` : ''}`;
+                    }
+                    return `**${msg.type === 'user' ? 'User' : 'Agent'}:** ${msg.type === 'bot' ? stripHtml(msg.text) : msg.text}`;
+                });
                 const transcript = `Chatbot ID: ${chatbotId}\nSession ID: ${sessionId}\n\n${lines.join('\n')}`;
                 const payload = {
                     chatInput: transcript,
@@ -371,6 +379,54 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         if (!isOpen) setShowMiniBubble(false);
     };
 
+    // Minimize: always close silently, keep state, never prompt.
+    const handleMinimize = () => {
+        setIsOpen(false);
+    };
+
+    // Close (×): show rating card if a real conversation happened and not already rated.
+    // Otherwise close silently.
+    // `?debug-rating` in the URL overrides the preview-mode skip for local testing.
+    const handleCloseAttempt = () => {
+        const hasUserMessages = messages.some(m => m.type === 'user');
+        const forceRating = typeof window !== 'undefined' && window.location.search.includes('debug-rating');
+        if (!hasUserMessages || hasRated || (isPreview && !forceRating)) {
+            setIsOpen(false);
+            return;
+        }
+        setShowRatingCard(true);
+    };
+
+    // Send the rating to the API, append the block to the transcript, close the widget.
+    const sendRating = () => {
+        if (!selectedRating || !sessionId) return;
+        const ratingValue = selectedRating;
+        const feedback = feedbackText.trim();
+
+        // Append the rating block to the local transcript so it flows into the
+        // pagehide payload and displays in the widget on reopen.
+        setMessages(prev => [
+            ...prev,
+            { type: 'rating', text: '', timestamp: new Date(), rating: ratingValue, feedback: feedback || undefined },
+        ]);
+
+        // Fire-and-forget POST — keepalive lets the request survive the close.
+        try {
+            fetch('https://app.optinbot.io/api/rating', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chatbotId, sessionId, rating: ratingValue, feedback }),
+                keepalive: true,
+            }).catch(() => { /* silent */ });
+        } catch { /* silent */ }
+
+        setHasRated(true);
+        setShowRatingCard(false);
+        setSelectedRating(null);
+        setFeedbackText('');
+        setIsOpen(false);
+    };
+
     if (membershipStatus === 'inactive') {
         return (
             <div className={`chat-widget-container ${finalTheme.buttonPosition || 'bottom-right'}`}>
@@ -417,26 +473,58 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                             )}
                         </div>
                     </div>
-                    <button className="close-button" onClick={toggleChat} style={{ color: 'white' }}>
-                        &times;
-                    </button>
+                    <div className="header-controls">
+                        <button
+                            className="minimize-button"
+                            onClick={handleMinimize}
+                            style={{ color: 'white' }}
+                            aria-label="Minimize chat"
+                            title="Minimize"
+                        >
+                            &minus;
+                        </button>
+                        <button
+                            className="close-button"
+                            onClick={handleCloseAttempt}
+                            style={{ color: 'white' }}
+                            aria-label="Close chat"
+                            title="Close"
+                        >
+                            &times;
+                        </button>
+                    </div>
                 </div>
 
                 <div className="chat-messages">
-                    {messages.map((msg, index) => (
-                        <div key={index} className={`message ${msg.type}`}>
-                            <div className={`message-bubble ${msg.type}`} style={{ backgroundColor: msg.type === 'user' ? 'var(--user-bubble-color)' : 'var(--bot-bubble-color)'}}>
-                                {msg.type === 'user' ? (
-                                    msg.text
-                                ) : (
-                                    <div dangerouslySetInnerHTML={{ __html: msg.text }} />
-                                )}
+                    {messages.map((msg, index) => {
+                        if (msg.type === 'rating') {
+                            return (
+                                <div key={index} className={`rating-inline-block ${msg.rating}`}>
+                                    <div className="rating-inline-emoji">{msg.rating === 'up' ? '👍' : '👎'}</div>
+                                    <div className="rating-inline-label">
+                                        You rated this chat {msg.rating === 'up' ? 'helpful' : 'not helpful'}
+                                    </div>
+                                    {msg.feedback && (
+                                        <div className="rating-inline-feedback">&ldquo;{msg.feedback}&rdquo;</div>
+                                    )}
+                                </div>
+                            );
+                        }
+                        return (
+                            <div key={index} className={`message ${msg.type}`}>
+                                <div className={`message-bubble ${msg.type}`} style={{ backgroundColor: msg.type === 'user' ? 'var(--user-bubble-color)' : 'var(--bot-bubble-color)'}}>
+                                    {msg.type === 'user' ? (
+                                        msg.text
+                                    ) : (
+                                        <div dangerouslySetInnerHTML={{ __html: msg.text }} />
+                                    )}
+                                </div>
+                                <span className="message-timestamp">
+                                    {msg.timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                                </span>
                             </div>
-                            <span className="message-timestamp">
-                                {msg.timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                            </span>
-                        </div>
-                    ))}
+                        );
+                    })}
                     {isLoading && (
                         <div className="message bot typing-indicator">
                             <div className="dot"></div>
@@ -444,8 +532,61 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                             <div className="dot"></div>
                         </div>
                     )}
+                    {hasRated && (
+                        <div className="rating-acknowledgment">
+                            You rated this chat {messages.find(m => m.type === 'rating')?.rating === 'up' ? '👍' : '👎'}
+                        </div>
+                    )}
                     <div ref={messagesEndRef} />
                 </div>
+
+                {showRatingCard && (
+                    <div className="rating-card-overlay" role="dialog" aria-label="Rate this conversation">
+                        <div className="rating-card">
+                            <div className="rating-card-title">How was your chat?</div>
+                            <div className="rating-thumbs">
+                                <button
+                                    className={`rating-thumb up ${selectedRating === 'up' ? 'selected' : ''}`}
+                                    onClick={() => setSelectedRating('up')}
+                                    aria-label="Thumbs up"
+                                >
+                                    👍
+                                </button>
+                                <button
+                                    className={`rating-thumb down ${selectedRating === 'down' ? 'selected' : ''}`}
+                                    onClick={() => setSelectedRating('down')}
+                                    aria-label="Thumbs down"
+                                >
+                                    👎
+                                </button>
+                            </div>
+                            {selectedRating && (
+                                <textarea
+                                    className="rating-textarea"
+                                    value={feedbackText}
+                                    onChange={(e) => setFeedbackText(e.target.value.slice(0, 500))}
+                                    placeholder={selectedRating === 'up' ? 'What did you love? (optional)' : 'What went wrong? (optional)'}
+                                    rows={3}
+                                />
+                            )}
+                            <div className="rating-actions">
+                                <button
+                                    className="rating-send-button"
+                                    onClick={sendRating}
+                                    disabled={!selectedRating}
+                                >
+                                    Send &amp; Close
+                                </button>
+                                <button
+                                    className="rating-cancel-button"
+                                    onClick={() => setShowRatingCard(false)}
+                                >
+                                    Not Yet
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {visibleSuggestedMessages.length > 0 && (
                     <div
