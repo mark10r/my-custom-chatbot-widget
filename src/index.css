@@ -343,6 +343,9 @@
     padding: 4px 0;
 }
 
+.rating-acknowledgment.up { color: #16a34a; }
+.rating-acknowledgment.down { color: #dc2626; }
+
 .chat-messages {
     flex-grow: 1;
     padding: 15px;

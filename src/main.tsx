@@ -37,6 +37,7 @@ export const defaultConfig = {
         poweredByUrl: 'https://optinbot.io',
         showPoweredByBranding: true,
         chatWindowBgColor: '#ffffff',
+        ratingsEnabled: true,
     },
     clientId: 'client_224c8vvrto',
 };

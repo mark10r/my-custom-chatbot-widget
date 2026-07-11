@@ -390,7 +390,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     const handleCloseAttempt = () => {
         const hasUserMessages = messages.some(m => m.type === 'user');
         const forceRating = typeof window !== 'undefined' && window.location.search.includes('debug-rating');
-        if (!hasUserMessages || hasRated || (isPreview && !forceRating)) {
+        const ratingsOff = finalTheme.ratingsEnabled === false;
+        if (ratingsOff || !hasUserMessages || hasRated || (isPreview && !forceRating)) {
             setIsOpen(false);
             return;
         }
@@ -497,19 +498,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
                 <div className="chat-messages">
                     {messages.map((msg, index) => {
-                        if (msg.type === 'rating') {
-                            return (
-                                <div key={index} className={`rating-inline-block ${msg.rating}`}>
-                                    <div className="rating-inline-emoji">{msg.rating === 'up' ? '👍' : '👎'}</div>
-                                    <div className="rating-inline-label">
-                                        You rated this chat {msg.rating === 'up' ? 'helpful' : 'not helpful'}
-                                    </div>
-                                    {msg.feedback && (
-                                        <div className="rating-inline-feedback">&ldquo;{msg.feedback}&rdquo;</div>
-                                    )}
-                                </div>
-                            );
-                        }
+                        // Rating messages live in state (for the transcript sent to the
+                        // dashboard) but don't render inline — the small footer handles it.
+                        if (msg.type === 'rating') return null;
                         return (
                             <div key={index} className={`message ${msg.type}`}>
                                 <div className={`message-bubble ${msg.type}`} style={{ backgroundColor: msg.type === 'user' ? 'var(--user-bubble-color)' : 'var(--bot-bubble-color)'}}>
@@ -532,11 +523,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                             <div className="dot"></div>
                         </div>
                     )}
-                    {hasRated && (
-                        <div className="rating-acknowledgment">
-                            You rated this chat {messages.find(m => m.type === 'rating')?.rating === 'up' ? '👍' : '👎'}
-                        </div>
-                    )}
+                    {hasRated && (() => {
+                        const rated = messages.find(m => m.type === 'rating')?.rating;
+                        return (
+                            <div className={`rating-acknowledgment ${rated || ''}`}>
+                                You rated this chat {rated === 'up' ? '👍' : '👎'}
+                            </div>
+                        );
+                    })()}
                     <div ref={messagesEndRef} />
                 </div>
 
