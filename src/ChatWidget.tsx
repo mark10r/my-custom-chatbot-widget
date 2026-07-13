@@ -164,7 +164,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 fetch('https://app.optinbot.io/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chatInput: stored.chatInput, clientId: stored.clientId, chatbotId: stored.chatbotId, sessionId: stored.sessionId, event: stored.event }),
+                    body: JSON.stringify({
+                        chatInput: stored.chatInput,
+                        clientId: stored.clientId,
+                        chatbotId: stored.chatbotId,
+                        sessionId: stored.sessionId,
+                        event: stored.event,
+                        // Rating/feedback survive in old payloads (backward-compat if present)
+                        rating: stored.rating ?? null,
+                        feedback: stored.feedback ?? null,
+                    }),
                 }).then(res => { if (res.ok) localStorage.removeItem(key); }).catch(() => {});
             } catch {
                 localStorage.removeItem(key);
@@ -320,12 +329,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     return `**${msg.type === 'user' ? 'User' : 'Agent'}:** ${msg.type === 'bot' ? stripHtml(msg.text) : msg.text}`;
                 });
                 const transcript = `Chatbot ID: ${chatbotId}\nSession ID: ${sessionId}\n\n${lines.join('\n')}`;
+                const ratingMsg = messages.find(m => m.type === 'rating');
                 const payload = {
                     chatInput: transcript,
                     clientId: clientId,
                     chatbotId: chatbotId,
                     sessionId: sessionId,
                     event: 'conversation_ended',
+                    rating: ratingMsg?.rating ?? null,
+                    feedback: ratingMsg?.feedback ?? null,
                 };
                 try {
                     localStorage.setItem(`optinbot_pending_end_${sessionId}`, JSON.stringify(payload));
@@ -334,7 +346,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     fetch('https://app.optinbot.io/api/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ chatInput: payload.chatInput, clientId: payload.clientId, chatbotId: payload.chatbotId, sessionId: payload.sessionId, event: payload.event }),
+                        body: JSON.stringify(payload),
                         keepalive: true
                     });
                     // Mark this count as sent so a same-session reopen with no new
@@ -477,28 +489,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         setShowRatingCard(true);
     };
 
-    // Send the rating to the API, append the block to the transcript, close the widget.
+    // Store the rating locally. It travels with the transcript via the
+    // pagehide handler as a single unified payload — no separate API call.
     const sendRating = () => {
         if (!selectedRating || !sessionId) return;
         const ratingValue = selectedRating;
         const feedback = feedbackText.trim();
 
-        // Append the rating block to the local transcript so it flows into the
-        // pagehide payload and displays in the widget on reopen.
         setMessages(prev => [
             ...prev,
             { type: 'rating', text: '', timestamp: new Date(), rating: ratingValue, feedback: feedback || undefined },
         ]);
-
-        // Fire-and-forget POST — keepalive lets the request survive the close.
-        try {
-            fetch('https://app.optinbot.io/api/rating', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chatbotId, sessionId, rating: ratingValue, feedback }),
-                keepalive: true,
-            }).catch(() => { /* silent */ });
-        } catch { /* silent */ }
 
         setHasRated(true);
         setShowRatingCard(false);
