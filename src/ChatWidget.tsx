@@ -486,13 +486,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         if (!isOpen) setShowMiniBubble(false);
     };
 
-    // Minimize: always close silently, keep state, never prompt.
-    const handleMinimize = () => {
-        setIsOpen(false);
-    };
-
     // Close (×): show rating card if a real conversation happened and not already rated.
-    // Otherwise close silently.
+    // Otherwise close silently. The rating card itself has a "Skip & close" escape
+    // for visitors who don't want to rate, which replaced the old minimize button.
     // `?debug-rating` in the URL overrides the preview-mode skip for local testing.
     const handleCloseAttempt = () => {
         const hasUserMessages = messages.some(m => m.type === 'user');
@@ -503,6 +499,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             return;
         }
         setShowRatingCard(true);
+    };
+
+    // Skip the rating and close the widget. Used by the "Skip & close" link on
+    // the rating card. Marks hasRated so the visitor isn't re-prompted this
+    // session (same as if they had rated).
+    const skipRating = () => {
+        setHasRated(true);
+        setShowRatingCard(false);
+        setSelectedRating(null);
+        setFeedbackText('');
+        setIsOpen(false);
     };
 
     // Store the rating locally. It travels with the transcript via the
@@ -570,26 +577,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                             )}
                         </div>
                     </div>
-                    <div className="header-controls">
-                        <button
-                            className="minimize-button"
-                            onClick={handleMinimize}
-                            style={{ color: 'white' }}
-                            aria-label="Minimize chat"
-                            title="Minimize"
-                        >
-                            &minus;
-                        </button>
-                        <button
-                            className="close-button"
-                            onClick={handleCloseAttempt}
-                            style={{ color: 'white' }}
-                            aria-label="Close chat"
-                            title="Close"
-                        >
-                            &times;
-                        </button>
-                    </div>
+                    <button
+                        className="close-button"
+                        onClick={handleCloseAttempt}
+                        style={{ color: 'white' }}
+                        aria-label="Close chat"
+                        title="Close"
+                    >
+                        &times;
+                    </button>
                 </div>
 
                 <div className="chat-messages">
@@ -659,19 +655,25 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                     rows={3}
                                 />
                             )}
-                            <div className="rating-actions">
+                            <button
+                                className="rating-send-button"
+                                onClick={sendRating}
+                                disabled={!selectedRating}
+                            >
+                                Send Feedback
+                            </button>
+                            <div className="rating-secondary-actions">
                                 <button
-                                    className="rating-send-button"
-                                    onClick={sendRating}
-                                    disabled={!selectedRating}
-                                >
-                                    Send &amp; Close
-                                </button>
-                                <button
-                                    className="rating-cancel-button"
+                                    className="rating-link-button"
                                     onClick={() => setShowRatingCard(false)}
                                 >
-                                    Not Yet
+                                    Keep chatting
+                                </button>
+                                <button
+                                    className="rating-link-button"
+                                    onClick={skipRating}
+                                >
+                                    Skip &amp; close
                                 </button>
                             </div>
                         </div>
