@@ -365,8 +365,21 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 }
             }
         };
+        // pagehide fires reliably on tab close and navigation, but Chrome/Firefox
+        // often kill pending fetches (even keepalive ones) before it completes on
+        // full-browser shutdown. visibilitychange → hidden fires EARLIER in the
+        // shutdown sequence and is the pattern GA/Amplitude/Segment use for
+        // reliable "user is leaving" detection. lastSentUserMessageCountRef makes
+        // the send idempotent so both firing doesn't double-send.
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') handlePageLeave();
+        };
         window.addEventListener('pagehide', handlePageLeave);
-        return () => window.removeEventListener('pagehide', handlePageLeave);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            window.removeEventListener('pagehide', handlePageLeave);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [messages, sessionId, clientId, chatbotId, hasRated, isPreview]);
 
     // --- AUTO-EXPANDING TEXTAREA LOGIC ---
