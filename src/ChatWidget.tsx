@@ -343,12 +343,23 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     localStorage.setItem(`optinbot_pending_end_${sessionId}`, JSON.stringify(payload));
                 } catch { /* localStorage unavailable */ }
                 try {
-                    fetch('https://app.optinbot.io/api/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload),
-                        keepalive: true
-                    });
+                    // navigator.sendBeacon is the standard for "please send this
+                    // before the page dies" — the browser guarantees to queue and
+                    // deliver even during shutdown. Used by GA/Amplitude/Segment
+                    // for exactly this scenario. Falls back to keepalive fetch if
+                    // sendBeacon is unavailable or fails (e.g. size limit).
+                    const body = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+                    const beaconOk = typeof navigator !== 'undefined' &&
+                        typeof navigator.sendBeacon === 'function' &&
+                        navigator.sendBeacon('https://app.optinbot.io/api/chat', body);
+                    if (!beaconOk) {
+                        fetch('https://app.optinbot.io/api/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload),
+                            keepalive: true
+                        });
+                    }
                     // Mark this count as sent so a same-session reopen with no new
                     // messages won't re-fire the n8n workflow.
                     lastSentUserMessageCountRef.current = userMessageCount;
