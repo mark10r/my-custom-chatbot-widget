@@ -615,13 +615,30 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                             <div className="dot"></div>
                         </div>
                     )}
-                    {hasRated && (() => {
-                        const rated = messages.find(m => m.type === 'rating')?.rating;
-                        return (
-                            <div className={`rating-acknowledgment ${rated || ''}`}>
-                                You rated this chat {rated === 'up' ? '👍' : '👎'}
-                            </div>
-                        );
+                    {(() => {
+                        const ratingMsg = messages.find(m => m.type === 'rating');
+                        // Case 1: visitor actually rated — show acknowledgment
+                        if (ratingMsg?.rating) {
+                            return (
+                                <div className={`rating-acknowledgment ${ratingMsg.rating}`}>
+                                    You rated this chat {ratingMsg.rating === 'up' ? '👍' : '👎'}
+                                </div>
+                            );
+                        }
+                        // Case 2: visitor used "Skip & close" (hasRated true but no
+                        // rating message) — offer a gentle second-chance nudge
+                        // instead of the intrusive full rating card.
+                        if (hasRated && finalTheme.ratingsEnabled !== false) {
+                            return (
+                                <button
+                                    className="rating-nudge"
+                                    onClick={() => setShowRatingCard(true)}
+                                >
+                                    Rate this chat
+                                </button>
+                            );
+                        }
+                        return null;
                     })()}
                     <div ref={messagesEndRef} />
                 </div>
