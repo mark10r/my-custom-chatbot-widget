@@ -56,6 +56,26 @@ const stripTranscriptHtml = (html: string) =>
         .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(parseInt(code, 10)))
         .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"').replace(/&apos;/g, "'").trim();
+// Append UTM params to the poweredBy URL so we can attribute traffic in
+// optinbot.io analytics back to the customer site the visitor clicked from.
+// utm_campaign = customer hostname (public info, visible in the address bar).
+// Preserves any existing query string / hash on the configured URL, and skips
+// UTM injection for non-optinbot.io destinations (customers who point the link
+// elsewhere shouldn't have UTM leaked into their own analytics).
+const buildPoweredByHref = (rawUrl: string): string => {
+    try {
+        const url = new URL(rawUrl);
+        if (!/(^|\.)optinbot\.io$/i.test(url.hostname)) return rawUrl;
+        const host = (typeof window !== 'undefined' && window.location?.hostname) || '';
+        url.searchParams.set('utm_source', 'widget');
+        url.searchParams.set('utm_medium', 'powered_by');
+        if (host) url.searchParams.set('utm_campaign', host);
+        return url.toString();
+    } catch {
+        return rawUrl;
+    }
+};
+
 const buildTranscript = (chatbotId: string, sessionId: string, msgs: TranscriptMessage[]): string => {
     const lines = msgs.map(msg => {
         if (msg.type === 'rating') {
@@ -780,7 +800,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 {(finalTheme.showPoweredByBranding || membershipStatus === 'trial') && finalTheme.poweredByText && (
                     <div className="chat-powered-by">
                         {finalTheme.poweredByUrl ? (
-                            <a href={finalTheme.poweredByUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--powered-by-link-color)' }}>
+                            <a
+                                href={buildPoweredByHref(finalTheme.poweredByUrl)}
+                                target="_blank"
+                                rel="noopener"
+                                style={{ color: 'var(--powered-by-link-color)' }}
+                            >
                                 {finalTheme.poweredByText}
                             </a>
                         ) : (
