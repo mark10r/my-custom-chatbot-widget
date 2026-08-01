@@ -388,13 +388,31 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 }
             }
         };
-        // Only pagehide — visibilitychange fires on every tab switch / minimize
-        // and would flood the workflow with mid-conversation transcript updates.
-        // pagehide + sendBeacon covers tab close, navigation, refresh, and most
-        // browser closes. Rare incognito shutdown misses are caught by the
-        // optinbot_pending_end_ flush effect on the visitor's next visit.
+        // Fire on both pagehide and beforeunload. Both events trigger on tab
+        // close / navigate away / refresh, and NEITHER fires on tab switch or
+        // minimize (that's visibilitychange, which we intentionally do not
+        // listen to — it would send premature transcripts every time the
+        // visitor tabbed away mid-chat).
+        //
+        // beforeunload fires EARLIER in the browser's teardown sequence than
+        // pagehide, giving sendBeacon more time to actually leave before the
+        // tab is destroyed. When only pagehide fires and the browser tears
+        // down quickly, the beacon can be dropped — visible symptom is the
+        // transcript only landing when the visitor next revisits (via the
+        // optinbot_pending_end_ localStorage flush on mount).
+        //
+        // Dedupe: lastSentUserMessageCountRef prevents both handlers double-
+        // firing for the same message count. Server-side, Conversations
+        // Template v2's Is Already Finalized guard is the second backstop.
+        //
+        // We deliberately DO NOT call event.preventDefault() in beforeunload
+        // — that would show the browser's "Leave site?" prompt to the visitor.
         window.addEventListener('pagehide', handlePageLeave);
-        return () => window.removeEventListener('pagehide', handlePageLeave);
+        window.addEventListener('beforeunload', handlePageLeave);
+        return () => {
+            window.removeEventListener('pagehide', handlePageLeave);
+            window.removeEventListener('beforeunload', handlePageLeave);
+        };
     }, [messages, sessionId, clientId, chatbotId, hasRated, isPreview]);
 
     // --- AUTO-EXPANDING TEXTAREA LOGIC ---
