@@ -381,14 +381,21 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     // deliver even during shutdown. Used by GA/Amplitude/Segment
                     // for exactly this scenario. Falls back to keepalive fetch if
                     // sendBeacon is unavailable or fails (e.g. size limit).
-                    const body = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+                    //
+                    // Use text/plain (not application/json) to avoid a CORS
+                    // preflight — sendBeacon silently refuses (returns false)
+                    // when the content-type would require one, and preflights
+                    // can also be cancelled during page teardown. text/plain is
+                    // a CORS-"safe" content-type; the server (Next.js
+                    // req.json()) parses the body as JSON regardless.
+                    const body = new Blob([JSON.stringify(payload)], { type: 'text/plain' });
                     const beaconOk = typeof navigator !== 'undefined' &&
                         typeof navigator.sendBeacon === 'function' &&
                         navigator.sendBeacon('https://app.optinbot.io/api/chat', body);
                     if (!beaconOk) {
                         fetch('https://app.optinbot.io/api/chat', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'text/plain' },
                             body: JSON.stringify(payload),
                             keepalive: true
                         });
@@ -459,14 +466,20 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     chatbotId,
                     sessionId: sessionId || null,
                 });
-                const body = new Blob([payload], { type: 'application/json' });
+                // Use text/plain to avoid a CORS preflight — 'application/json'
+                // triggers one, which sendBeacon can silently refuse (returns
+                // false) and which some fetch wrappers (e.g. New Relic) can
+                // trip on during link-click navigation, producing ERR_FAILED.
+                // Server (Next.js req.json()) parses the body as JSON regardless
+                // of Content-Type, so nothing changes server-side.
+                const body = new Blob([payload], { type: 'text/plain' });
                 const beaconOk = typeof navigator !== 'undefined' &&
                     typeof navigator.sendBeacon === 'function' &&
                     navigator.sendBeacon('https://app.optinbot.io/api/link-click', body);
                 if (!beaconOk) {
                     fetch('https://app.optinbot.io/api/link-click', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'text/plain' },
                         body: payload,
                         keepalive: true,
                     }).catch(() => { /* fire-and-forget */ });
