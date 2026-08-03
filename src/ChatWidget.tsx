@@ -143,6 +143,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
    
     // Refs
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const scrollIntervalRef = useRef<number | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null); 
@@ -435,6 +436,49 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         };
     }, [messages, sessionId, clientId, chatbotId, hasRated, isPreview]);
 
+    // --- EFFECT: TRACK BOT-LINK CLICKS ---
+    // Event delegation on the messages container. Only clicks inside a bot
+    // message get reported. Uses sendBeacon so the request survives the tab
+    // navigating away when the visitor clicks an external link.
+    // Skipped in preview so dashboard live-edits don't pollute analytics.
+    useEffect(() => {
+        if (isPreview || !chatbotId) return;
+        const container = messagesContainerRef.current;
+        if (!container) return;
+
+        const handleClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement | null;
+            const anchor = target?.closest?.('a') as HTMLAnchorElement | null;
+            if (!anchor || !anchor.href) return;
+            // Only track links inside bot messages, not user messages or the
+            // "Powered by" link in the footer.
+            if (!target?.closest?.('.message.bot')) return;
+            try {
+                const payload = JSON.stringify({
+                    url: anchor.href,
+                    chatbotId,
+                    sessionId: sessionId || null,
+                });
+                const body = new Blob([payload], { type: 'application/json' });
+                const beaconOk = typeof navigator !== 'undefined' &&
+                    typeof navigator.sendBeacon === 'function' &&
+                    navigator.sendBeacon('https://app.optinbot.io/api/link-click', body);
+                if (!beaconOk) {
+                    fetch('https://app.optinbot.io/api/link-click', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: payload,
+                        keepalive: true,
+                    }).catch(() => { /* fire-and-forget */ });
+                }
+            } catch { /* silent — never break the actual link click */ }
+            // Deliberately no preventDefault — the link navigates normally.
+        };
+
+        container.addEventListener('click', handleClick);
+        return () => container.removeEventListener('click', handleClick);
+    }, [chatbotId, sessionId, isPreview]);
+
     // --- AUTO-EXPANDING TEXTAREA LOGIC ---
     useEffect(() => {
         if (textareaRef.current) {
@@ -644,7 +688,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     </button>
                 </div>
 
-                <div className="chat-messages">
+                <div className="chat-messages" ref={messagesContainerRef}>
                     {messages.map((msg, index) => {
                         // Rating messages live in state (for the transcript sent to the
                         // dashboard) but don't render inline — the small footer handles it.
