@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export const SCHEDULE_MEETING_TOKEN = '[SCHEDULE_MEETING]';
 
