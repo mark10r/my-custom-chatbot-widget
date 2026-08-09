@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import { defaultConfig } from './main.tsx'; // Import from your existing file
+import BookingCard, { SCHEDULE_MEETING_TOKEN } from './BookingCard';
 
 // --- 24-HOUR CONVERSATION PERSISTENCE ---
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -12,6 +13,7 @@ type PersistedMessage = {
     timestamp: string;
     rating?: 'up' | 'down';
     feedback?: string;
+    showBookingCard?: boolean;
 };
 type PersistedSession = {
     sessionId: string;
@@ -128,8 +130,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
     // State
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<{ type: 'user' | 'bot' | 'rating'; text: string; timestamp: Date; rating?: 'up' | 'down'; feedback?: string }[]>(
-        () => restored ? restored.messages.map(m => ({ ...m, timestamp: new Date(m.timestamp) })) : []
+    const [messages, setMessages] = useState<{ type: 'user' | 'bot' | 'rating'; text: string; timestamp: Date; rating?: 'up' | 'down'; feedback?: string; showBookingCard?: boolean }[]>(
+        // Any showBookingCard flag from a prior session is intentionally dropped —
+        // the confirmation is captured in the synthetic bot message we append
+        // after a successful booking, so rehydrated sessions never re-render a
+        // stale picker.
+        () => restored ? restored.messages.map(m => ({ ...m, timestamp: new Date(m.timestamp), showBookingCard: undefined })) : []
     );
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -255,7 +261,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         if (isPreview || !sessionId || !chatbotId) return;
         savePersistedSession(chatbotId, {
             sessionId,
-            messages: messages.map(m => ({ ...m, timestamp: m.timestamp.toISOString() })),
+            messages: messages.map(({ showBookingCard: _drop, ...m }) => ({ ...m, timestamp: m.timestamp.toISOString() })),
             hasRated,
             lastSentUserMessageCount: lastSentUserMessageCountRef.current,
         });
@@ -571,11 +577,19 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 .replace(/&quot;/g, '"')
                 .replace(/&apos;/g, "'");
 
-            let formattedText = botResponseText;
-            const parsedResult = marked.parse(botResponseText);
+            // Detect the AI's booking trigger token before markdown parsing so the
+            // literal string is easy to match. Strip it from the visible text and
+            // mark the message so the render loop mounts an inline BookingCard.
+            const showBookingCard = botResponseText.includes(SCHEDULE_MEETING_TOKEN);
+            const visibleText = showBookingCard
+                ? botResponseText.split(SCHEDULE_MEETING_TOKEN).join('').trim()
+                : botResponseText;
+
+            let formattedText = visibleText;
+            const parsedResult = marked.parse(visibleText);
             formattedText = (parsedResult instanceof Promise) ? await parsedResult : parsedResult;
 
-            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: formattedText, timestamp: new Date() }]);
+            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: formattedText, timestamp: new Date(), showBookingCard: showBookingCard || undefined }]);
            
             playNotification();
             triggerTabNotification();
@@ -712,7 +726,25 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                     {msg.type === 'user' ? (
                                         msg.text
                                     ) : (
-                                        <div dangerouslySetInnerHTML={{ __html: msg.text }} />
+                                        <>
+                                            {msg.text && <div dangerouslySetInnerHTML={{ __html: msg.text }} />}
+                                            {msg.showBookingCard && (
+                                                <BookingCard
+                                                    clientId={clientId}
+                                                    chatbotId={chatbotId}
+                                                    sessionId={sessionId}
+                                                    onBooked={({ slot, meetLink, timezone, email }) => {
+                                                        const dt = new Intl.DateTimeFormat(undefined, { timeZone: timezone, weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(slot.start));
+                                                        const meetLine = meetLink ? ` <a href="${meetLink}" target="_blank" rel="noopener noreferrer">Join Google Meet</a>` : '';
+                                                        setMessages(prev => [...prev, {
+                                                            type: 'bot',
+                                                            text: `Great — you're all set for <strong>${dt}</strong>. I've sent an invite to ${email}.${meetLine}`,
+                                                            timestamp: new Date(),
+                                                        }]);
+                                                    }}
+                                                />
+                                            )}
+                                        </>
                                     )}
                                 </div>
                                 <span className="message-timestamp">
