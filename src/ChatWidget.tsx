@@ -728,11 +728,41 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                     ) : (
                                         <>
                                             {msg.text && <div dangerouslySetInnerHTML={{ __html: msg.text }} />}
-                                            {msg.showBookingCard && (
+                                            {msg.showBookingCard && (() => {
+                                                // The AI already asked for name + email before emitting
+                                                // the token, so scan back through user replies to prefill
+                                                // the confirm form. Look for the most recent user message
+                                                // containing an email; treat leftover words as the name.
+                                                const emailRe = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+                                                let prefillName = '';
+                                                let prefillEmail = '';
+                                                for (let i = messages.length - 1; i >= 0; i--) {
+                                                    const m = messages[i];
+                                                    if (m.type !== 'user') continue;
+                                                    const found = m.text.match(emailRe);
+                                                    if (!found) continue;
+                                                    prefillEmail = found[0];
+                                                    const rest = m.text.replace(prefillEmail, '').replace(/[,;:]/g, ' ').replace(/\s+/g, ' ').trim();
+                                                    if (rest) prefillName = rest;
+                                                    else {
+                                                        // Same-message had only the email — take the
+                                                        // previous non-empty user message as the name.
+                                                        for (let j = i - 1; j >= 0; j--) {
+                                                            if (messages[j].type === 'user' && messages[j].text.trim()) {
+                                                                prefillName = messages[j].text.trim();
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    break;
+                                                }
+                                                return (
                                                 <BookingCard
                                                     clientId={clientId}
                                                     chatbotId={chatbotId}
                                                     sessionId={sessionId}
+                                                    prefillName={prefillName}
+                                                    prefillEmail={prefillEmail}
                                                     onBooked={({ slot, meetLink, timezone, email }) => {
                                                         const dt = new Intl.DateTimeFormat(undefined, { timeZone: timezone, weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(slot.start));
                                                         const meetLine = meetLink ? ` <a href="${meetLink}" target="_blank" rel="noopener noreferrer">Join Google Meet</a>` : '';
@@ -743,7 +773,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                                         }]);
                                                     }}
                                                 />
-                                            )}
+                                                );
+                                            })()}
                                         </>
                                     )}
                                 </div>

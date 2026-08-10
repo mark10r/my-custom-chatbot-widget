@@ -27,6 +27,10 @@ type Props = {
     clientId: string;
     chatbotId: string;
     sessionId: string | null;
+    // Prefills for the confirm step — the AI usually asks for these before
+    // emitting the token, so the visitor already typed them into chat.
+    prefillName?: string;
+    prefillEmail?: string;
     onBooked: (info: { slot: Slot; meetLink: string | null; timezone: string; email: string }) => void;
 };
 
@@ -44,7 +48,7 @@ function shortDate(iso: string, timeZone: string) {
     return new Intl.DateTimeFormat(undefined, { timeZone, weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(iso));
 }
 
-export default function BookingCard({ clientId, chatbotId, sessionId, onBooked }: Props) {
+export default function BookingCard({ clientId, chatbotId, sessionId, prefillName = '', prefillEmail = '', onBooked }: Props) {
     const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
 
     const loadAvailability = async () => {
@@ -182,8 +186,8 @@ export default function BookingCard({ clientId, chatbotId, sessionId, onBooked }
                                     data: phase.data,
                                     selectedDate: selected.date,
                                     slot: s,
-                                    name: '',
-                                    email: '',
+                                    name: prefillName,
+                                    email: prefillEmail,
                                     submitting: false,
                                 })
                             }
