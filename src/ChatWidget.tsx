@@ -1,7 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { defaultConfig } from './main.tsx'; // Import from your existing file
 import BookingCard, { SCHEDULE_MEETING_TOKEN } from './BookingCard';
+
+// Bot output is authored by an LLM whose prompt can be influenced by any
+// visitor message. Sanitize before feeding to dangerouslySetInnerHTML so a
+// prompt-injected <img onerror=...> or <script> can't run on the customer's
+// site. Allow only inline markdown-flavored tags; forbid all scripts, styles,
+// forms, iframes, and event handlers.
+const SANITIZE_CONFIG: DOMPurify.Config = {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li', 'code', 'pre', 'a', 'blockquote', 'hr', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+    ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'class'],
+    ALLOW_DATA_ATTR: false,
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+};
+
+const sanitizeHtml = (raw: string): string => DOMPurify.sanitize(raw, SANITIZE_CONFIG);
 
 // --- 24-HOUR CONVERSATION PERSISTENCE ---
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -727,7 +742,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                         msg.text
                                     ) : (
                                         <>
-                                            {msg.text && <div dangerouslySetInnerHTML={{ __html: msg.text }} />}
+                                            {msg.text && <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(msg.text) }} />}
                                             {msg.showBookingCard && (() => {
                                                 // The AI already asked for name + email before emitting
                                                 // the token, so scan back through user replies to prefill
