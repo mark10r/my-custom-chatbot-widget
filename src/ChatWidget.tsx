@@ -16,7 +16,10 @@ const SANITIZE_CONFIG: DOMPurify.Config = {
     ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
 };
 
-const sanitizeHtml = (raw: string): string => DOMPurify.sanitize(raw, SANITIZE_CONFIG);
+// Cast: dompurify ^3.4 ships its own stricter Config type while
+// @types/dompurify is still on the older, looser one. The runtime shape is
+// identical — this cast bridges the type-only mismatch.
+const sanitizeHtml = (raw: string): string => DOMPurify.sanitize(raw, SANITIZE_CONFIG as Parameters<typeof DOMPurify.sanitize>[1]);
 
 // --- 24-HOUR CONVERSATION PERSISTENCE ---
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;

@@ -2,8 +2,31 @@
 
 import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import * as Sentry from '@sentry/react';
 import ChatWidget from './ChatWidget.tsx';
 import './index.css';
+
+// Widget errors surface in the same Sentry project as the dashboard, tagged
+// as environment 'widget-production' so they can be filtered separately.
+// sendDefaultPii is off — visitors are not our users to profile.
+Sentry.init({
+  dsn: 'https://4a04df28ef3e192939bcb04bb0ae0184@o4511416747622400.ingest.us.sentry.io/4511420080324608',
+  environment: 'widget-production',
+  release: `widget@${import.meta.env.MODE}`,
+  sendDefaultPii: false,
+  // Modest sampling — the widget is embedded on many sites; we want signal,
+  // not every network hiccup.
+  tracesSampleRate: 0.1,
+  ignoreErrors: [
+    // Visitor's network dropped mid-request — not our bug
+    'NetworkError',
+    'Failed to fetch',
+    'Load failed',
+    // Ad-blockers / browser extensions injecting scripts
+    'ResizeObserver loop limit exceeded',
+    'Non-Error promise rejection captured',
+  ],
+});
 
 // Define a default configuration
 export const defaultConfig = {
@@ -244,14 +267,28 @@ const initializeChatbot = async () => {
 
         return (
             <React.StrictMode>
-                <ChatWidget
-                    n8nWebhookUrl=""
-                    theme={finalConfig.theme}
-                    clientId={finalConfig.clientId}
-                    chatbotId={window.optinbotConfig?.chatbotId ?? ''}
-                    membershipStatus={membershipStatus}
-                    isPreview={preview}
-                />
+                <Sentry.ErrorBoundary
+                    // Fail silently in visitor browsers — a broken widget must
+                    // never disrupt the host page. Sentry still receives the
+                    // full error via beforeCapture.
+                    fallback={<></>}
+                    beforeCapture={(scope) => {
+                        scope.setTag('area', 'widget-render');
+                        scope.setTag('client_id', finalConfig.clientId);
+                        scope.setTag('chatbot_id', window.optinbotConfig?.chatbotId ?? 'unknown');
+                        scope.setTag('host_site', window.location.hostname);
+                        scope.setTag('is_preview', String(preview));
+                    }}
+                >
+                    <ChatWidget
+                        n8nWebhookUrl=""
+                        theme={finalConfig.theme}
+                        clientId={finalConfig.clientId}
+                        chatbotId={window.optinbotConfig?.chatbotId ?? ''}
+                        membershipStatus={membershipStatus}
+                        isPreview={preview}
+                    />
+                </Sentry.ErrorBoundary>
             </React.StrictMode>
         );
     };
