@@ -25,6 +25,10 @@ Sentry.init({
     // Ad-blockers / browser extensions injecting scripts
     'ResizeObserver loop limit exceeded',
     'Non-Error promise rejection captured',
+    // Browser autoplay / permission policy — expected in mobile browsers
+    // that block sound/notifications/clipboard before user interaction
+    'NotAllowedError',
+    "play() failed because the user didn't interact",
   ],
 });
 

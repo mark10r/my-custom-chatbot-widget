@@ -207,7 +207,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     const playNotification = () => {
         try {
             const audio = new Audio(NOTIFICATION_SOUND_B64);
-            audio.play();
+            // play() returns a Promise. iOS (and desktop Safari/Chrome under
+            // autoplay policy) rejects it with NotAllowedError when the user
+            // hasn't interacted with the page yet. Swallow it silently — a
+            // muted notification is fine, and letting the rejection propagate
+            // shows up as a Sentry alert on every silent-load session.
+            const p = audio.play();
+            if (p && typeof p.catch === 'function') {
+                p.catch(() => { /* autoplay blocked, expected */ });
+            }
         } catch (e) {
             console.error("Audio playback blocked or failed:", e);
         }
