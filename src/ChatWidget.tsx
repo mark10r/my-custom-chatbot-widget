@@ -835,7 +835,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                             <div className="dot"></div>
                         </div>
                     )}
-                    {(() => {
+                    {!isInline && (() => {
                         const ratingMsg = messages.find(m => m.type === 'rating');
                         // Case 1: visitor actually rated — show acknowledgment
                         if (ratingMsg?.rating) {
@@ -944,33 +944,56 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     </div>
                 )}
 
-                {isInline && finalTheme.ratingsEnabled !== false && !hasRated && messages.some(m => m.type === 'bot') && (
-                    <div className="inline-rating-footer" role="group" aria-label="Rate this chat">
-                        <span className="inline-rating-label">Was this helpful?</span>
-                        <button
-                            className="inline-rating-thumb"
-                            aria-label="Thumbs up"
-                            onClick={() => { setSelectedRating('up'); setShowRatingCard(true); }}
-                        >
-                            👍
-                        </button>
-                        <button
-                            className="inline-rating-thumb"
-                            aria-label="Thumbs down"
-                            onClick={() => { setSelectedRating('down'); setShowRatingCard(true); }}
-                        >
-                            👎
-                        </button>
-                        <button
-                            className="inline-rating-dismiss"
-                            aria-label="Dismiss rating"
-                            title="Dismiss"
-                            onClick={() => setHasRated(true)}
-                        >
-                            ×
-                        </button>
-                    </div>
-                )}
+                {isInline && finalTheme.ratingsEnabled !== false && messages.some(m => m.type === 'bot') && (() => {
+                    const ratingMsg = messages.find(m => m.type === 'rating');
+                    // Post-rating: show acknowledgment pinned to footer
+                    if (ratingMsg?.rating) {
+                        return (
+                            <div className={`inline-rating-footer inline-rating-acknowledgment ${ratingMsg.rating}`}>
+                                You rated this chat {ratingMsg.rating === 'up' ? '👍' : '👎'}
+                            </div>
+                        );
+                    }
+                    // Skipped: gentle "Rate this chat" nudge pinned to footer
+                    if (hasRated) {
+                        return (
+                            <button
+                                className="inline-rating-footer inline-rating-nudge"
+                                onClick={() => setShowRatingCard(true)}
+                            >
+                                Rate this chat
+                            </button>
+                        );
+                    }
+                    // Default: the "Was this helpful?" prompt
+                    return (
+                        <div className="inline-rating-footer" role="group" aria-label="Rate this chat">
+                            <span className="inline-rating-label">Was this helpful?</span>
+                            <button
+                                className="inline-rating-thumb"
+                                aria-label="Thumbs up"
+                                onClick={() => { setSelectedRating('up'); setShowRatingCard(true); }}
+                            >
+                                👍
+                            </button>
+                            <button
+                                className="inline-rating-thumb"
+                                aria-label="Thumbs down"
+                                onClick={() => { setSelectedRating('down'); setShowRatingCard(true); }}
+                            >
+                                👎
+                            </button>
+                            <button
+                                className="inline-rating-dismiss"
+                                aria-label="Dismiss rating"
+                                title="Dismiss"
+                                onClick={() => setHasRated(true)}
+                            >
+                                ×
+                            </button>
+                        </div>
+                    );
+                })()}
 
                 <div className="chat-input-area">
                     <textarea

@@ -110,6 +110,10 @@ declare global {
             clientId?: string;
             chatbotId?: string;
             isPreview?: boolean;
+            // Preview mode: dashboard injects the current widget/availability
+            // config here so unsaved edits (displayMode, inline.showHeader, etc.)
+            // take effect without a round-trip to /api/widget-config.
+            widget?: Partial<WidgetAvailability>;
         };
     }
 }
@@ -239,10 +243,21 @@ const initializeChatbot = async () => {
         theme: { ...defaultConfig.theme, ...window.optinbotConfig?.theme, ...remoteConfig.theme },
     };
 
-    const widgetAvailability: WidgetAvailability = remoteConfig.widget;
+    // Merge preview-mode inline overrides on top of the server (or default)
+    // config. window.optinbotConfig.widget carries live dashboard edits when
+    // isPreview is true; production embeds never populate it, so this is a
+    // no-op outside preview.
+    const widgetAvailability: WidgetAvailability = {
+        ...remoteConfig.widget,
+        ...(window.optinbotConfig?.widget ?? {}),
+        inline: {
+            ...(remoteConfig.widget.inline ?? {}),
+            ...(window.optinbotConfig?.widget?.inline ?? {}),
+        },
+    };
 
-    // Server config wins over embed attribute so a customer switching modes in
-    // the dashboard takes effect without re-pasting the embed code.
+    // Server/preview config wins over embed attribute so a customer switching
+    // modes in the dashboard takes effect without re-pasting the embed code.
     const displayMode: 'bubble' | 'inline' = widgetAvailability.displayMode ?? embedMode;
     const showInlineHeader: boolean = widgetAvailability.inline?.showHeader ?? true;
 
@@ -285,6 +300,19 @@ const initializeChatbot = async () => {
         if (!preview && !isWidgetLive(widgetAvailability)) {
             // Referenced so eslint knows the tick drives re-render decisions.
             void liveTick;
+            // Inline mode: customer's container has explicit width/height, so
+            // returning null would leave a blank sized box. Show a friendly
+            // "offline" placeholder that fills the container.
+            if (displayMode === 'inline') {
+                return (
+                    <div className="chat-widget-container inline chat-widget-offline">
+                        <div className="chat-widget-offline-inner">
+                            <div className="chat-widget-offline-title">Chat is currently offline</div>
+                            <div className="chat-widget-offline-body">Please check back during business hours.</div>
+                        </div>
+                    </div>
+                );
+            }
             return null;
         }
 
