@@ -44,6 +44,77 @@
 .chat-widget-container.top-right { top: 40px; right: 40px; }
 .chat-widget-container.top-left { top: 40px; left: 40px; }
 
+/* Inline mode — chat renders inside the customer's container instead of floating.
+   Skip the fixed positioning; fill the parent div (customer sizes it via
+   inline style="width:...; height:..." on their #optinbot-chatbot-container). */
+.chat-widget-container.inline {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 400px;
+    z-index: auto;
+}
+.chat-widget-container.inline .chat-window {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    top: auto; right: auto; bottom: auto; left: auto;
+    transform: none;
+    border-radius: 12px;
+    opacity: 1;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+}
+.chat-widget-container.inline .chat-bubble-button,
+.chat-widget-container.inline .mini-welcome-bubble {
+    display: none !important;
+}
+
+/* Inline mode — persistent rating footer above the input area.
+   Bubble mode reaches ratings via the close button; inline mode has no close,
+   so we surface thumbs-up/down as a thin always-visible bar. */
+.inline-rating-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-top: 1px solid var(--input-border-color);
+    background: var(--chat-window-bg-color, #ffffff);
+    font-size: 13px;
+    color: #555;
+}
+.inline-rating-label {
+    flex: 1;
+    color: #666;
+}
+.inline-rating-thumb {
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 16px;
+    line-height: 1;
+    transition: background-color 0.15s;
+    background: transparent;
+}
+.inline-rating-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+.inline-rating-dismiss {
+    cursor: pointer;
+    padding: 2px 8px;
+    font-size: 18px;
+    line-height: 1;
+    color: #999;
+    background: transparent;
+    border-radius: 4px;
+    transition: color 0.15s, background-color 0.15s;
+}
+.inline-rating-dismiss:hover {
+    color: #333;
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
 .mini-welcome-bubble {
     position: absolute;
     padding: 8px 12px;

@@ -80,6 +80,10 @@ export type WidgetAvailability = {
         timezone: string;
         days: Record<ScheduleDayKey, ScheduleDay>;
     };
+    displayMode?: 'bubble' | 'inline';
+    inline?: {
+        showHeader?: boolean;
+    };
 };
 
 const DEFAULT_WIDGET_AVAILABILITY: WidgetAvailability = {
@@ -201,6 +205,10 @@ const initializeChatbot = async () => {
     const container = document.getElementById('optinbot-chatbot-container');
     if (!container) return;
 
+    // --- DETECT DISPLAY MODE (embed attribute; server config overrides below) ---
+    const embedMode: 'bubble' | 'inline' =
+        container.getAttribute('data-optinbot-mode') === 'inline' ? 'inline' : 'bubble';
+
     // --- DETECT PREVIEW MODE ---
     const isLocal = window.location.hostname === 'localhost';
     const isDashboardReferrer = document.referrer && document.referrer.includes('optinbot.io');
@@ -232,6 +240,17 @@ const initializeChatbot = async () => {
     };
 
     const widgetAvailability: WidgetAvailability = remoteConfig.widget;
+
+    // Server config wins over embed attribute so a customer switching modes in
+    // the dashboard takes effect without re-pasting the embed code.
+    const displayMode: 'bubble' | 'inline' = widgetAvailability.displayMode ?? embedMode;
+    const showInlineHeader: boolean = widgetAvailability.inline?.showHeader ?? true;
+
+    // Inline mode never renders on mobile — customers on phones/tablets get
+    // nothing (per product decision). Bubble mode is unaffected.
+    if (displayMode === 'inline' && !isPreviewMode && window.matchMedia('(max-width: 767px)').matches) {
+        return;
+    }
 
     const root: Root = createRoot(container);
 
@@ -291,6 +310,8 @@ const initializeChatbot = async () => {
                         chatbotId={window.optinbotConfig?.chatbotId ?? ''}
                         membershipStatus={membershipStatus}
                         isPreview={preview}
+                        displayMode={displayMode}
+                        showInlineHeader={showInlineHeader}
                     />
                 </Sentry.ErrorBoundary>
             </React.StrictMode>

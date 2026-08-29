@@ -125,6 +125,8 @@ interface ChatWidgetProps {
     chatbotId: string;
     membershipStatus: 'active' | 'inactive' | 'trial';
     isPreview?: boolean;
+    displayMode?: 'bubble' | 'inline';
+    showInlineHeader?: boolean;
 }
 
 type SuggestedMessage = {
@@ -139,9 +141,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     clientId,
     chatbotId,
     membershipStatus,
-    isPreview = false
+    isPreview = false,
+    displayMode = 'bubble',
+    showInlineHeader = true
 }) => {
     const finalTheme = { ...defaultConfig.theme, ...theme };
+    const isInline = displayMode === 'inline';
 
     // Restore any persisted session (skipped in preview to avoid dashboard state leakage)
     const restored = React.useMemo(() => (isPreview ? null : loadPersistedSession(chatbotId)), [chatbotId, isPreview]);
@@ -184,7 +189,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     );
 
     // --- EFFECT: MOBILE SCROLL LOCK ---
+    // Skipped in inline mode — inline never renders on mobile (main.tsx guard).
     useEffect(() => {
+        if (isInline) return;
         const isMobile = window.innerWidth <= 480;
         if (isOpen && isMobile) {
             document.body.style.overflow = 'hidden';
@@ -201,7 +208,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             document.body.style.position = '';
             document.body.style.width = '';
         };
-    }, [isOpen]);
+    }, [isOpen, isInline]);
 
     // --- AUDIO & TAB NOTIFICATIONS ---
     const playNotification = () => {
@@ -662,7 +669,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         setShowRatingCard(false);
         setSelectedRating(null);
         setFeedbackText('');
-        setIsOpen(false);
+        // Bubble mode closes the chat after skip; inline mode has no "close"
+        // — leave the chat open so the visitor can keep chatting.
+        if (!isInline) setIsOpen(false);
     };
 
     // Store the rating locally. It travels with the transcript via the
@@ -694,19 +703,25 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         );
     }
 
+    // In inline mode the chat is always visible — no toggle, no bubble button.
+    const chatWindowOpen = isInline || isOpen;
+
     return (
-        <div className={`chat-widget-container ${finalTheme.buttonPosition} ${isOpen ? 'mobile-open' : ''}`}>
-            {showMiniBubble && (
+        <div className={`chat-widget-container ${isInline ? 'inline' : finalTheme.buttonPosition} ${!isInline && isOpen ? 'mobile-open' : ''}`}>
+            {!isInline && showMiniBubble && (
                 <div className="mini-welcome-bubble" onClick={toggleChat}>
                     <span>{finalTheme.welcomeBubbleText}</span>
                 </div>
             )}
-           
-            <button className="chat-bubble-button" onClick={toggleChat}>
-                <img src={finalTheme.customIconUrl} alt="Chat Icon" className="chat-icon" />
-            </button>
 
-            <div className={`chat-window ${isOpen ? 'is-open' : 'is-closed'}`} style={{ borderColor: 'var(--primary-color)' }}>
+            {!isInline && (
+                <button className="chat-bubble-button" onClick={toggleChat}>
+                    <img src={finalTheme.customIconUrl} alt="Chat Icon" className="chat-icon" />
+                </button>
+            )}
+
+            <div className={`chat-window ${chatWindowOpen ? 'is-open' : 'is-closed'}`} style={{ borderColor: 'var(--primary-color)' }}>
+                {(!isInline || showInlineHeader) && (
                 <div className="chat-header">
                     <div className="header-content" style={{ display: 'flex', alignItems: 'center' }}>
                         {finalTheme.headerIconUrl && (
@@ -730,16 +745,19 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                             )}
                         </div>
                     </div>
-                    <button
-                        className="close-button"
-                        onClick={handleCloseAttempt}
-                        style={{ color: 'white' }}
-                        aria-label="Close chat"
-                        title="Close"
-                    >
-                        &times;
-                    </button>
+                    {!isInline && (
+                        <button
+                            className="close-button"
+                            onClick={handleCloseAttempt}
+                            style={{ color: 'white' }}
+                            aria-label="Close chat"
+                            title="Close"
+                        >
+                            &times;
+                        </button>
+                    )}
                 </div>
+                )}
 
                 <div className="chat-messages" ref={messagesContainerRef}>
                     {messages.map((msg, index) => {
@@ -892,7 +910,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                     className="rating-link-button"
                                     onClick={skipRating}
                                 >
-                                    Skip &amp; close
+                                    {isInline ? 'Skip' : 'Skip & close'}
                                 </button>
                             </div>
                         </div>
@@ -923,6 +941,34 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                 </button>
                             ))}
                         </div>
+                    </div>
+                )}
+
+                {isInline && finalTheme.ratingsEnabled !== false && !hasRated && messages.some(m => m.type === 'bot') && (
+                    <div className="inline-rating-footer" role="group" aria-label="Rate this chat">
+                        <span className="inline-rating-label">Was this helpful?</span>
+                        <button
+                            className="inline-rating-thumb"
+                            aria-label="Thumbs up"
+                            onClick={() => { setSelectedRating('up'); setShowRatingCard(true); }}
+                        >
+                            👍
+                        </button>
+                        <button
+                            className="inline-rating-thumb"
+                            aria-label="Thumbs down"
+                            onClick={() => { setSelectedRating('down'); setShowRatingCard(true); }}
+                        >
+                            👎
+                        </button>
+                        <button
+                            className="inline-rating-dismiss"
+                            aria-label="Dismiss rating"
+                            title="Dismiss"
+                            onClick={() => setHasRated(true)}
+                        >
+                            ×
+                        </button>
                     </div>
                 )}
 
