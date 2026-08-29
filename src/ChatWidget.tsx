@@ -942,7 +942,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     </div>
                 )}
 
-                {isInline && finalTheme.ratingsEnabled !== false && messages.some(m => m.type === 'bot') && (() => {
+                {isInline && finalTheme.ratingsEnabled !== false && messages.filter(m => m.type === 'user').length >= 2 && (() => {
                     const ratingMsg = messages.find(m => m.type === 'rating');
                     // Post-rating: show acknowledgment pinned to footer
                     if (ratingMsg?.rating) {
