@@ -143,7 +143,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     membershipStatus,
     isPreview = false,
     displayMode = 'bubble',
-    showInlineHeader = true
+    showInlineHeader: _showInlineHeader = true
 }) => {
     const finalTheme = { ...defaultConfig.theme, ...theme };
     const isInline = displayMode === 'inline';
@@ -721,7 +721,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             )}
 
             <div className={`chat-window ${chatWindowOpen ? 'is-open' : 'is-closed'}`} style={{ borderColor: 'var(--primary-color)' }}>
-                {(!isInline || showInlineHeader) && (
                 <div className="chat-header">
                     <div className="header-content" style={{ display: 'flex', alignItems: 'center' }}>
                         {finalTheme.headerIconUrl && (
@@ -757,7 +756,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                         </button>
                     )}
                 </div>
-                )}
 
                 <div className="chat-messages" ref={messagesContainerRef}>
                     {messages.map((msg, index) => {

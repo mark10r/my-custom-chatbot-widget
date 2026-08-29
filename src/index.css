@@ -53,7 +53,7 @@
     height: 100%;
     min-height: 400px;
     z-index: auto;
-    padding: 8px;                 /* small gap so the rounded chat-window doesn't sit flush against the container edge */
+    padding: 16px;                /* breathing room around the rounded chat-window */
     box-sizing: border-box;
 }
 .chat-widget-container.inline .chat-window {
