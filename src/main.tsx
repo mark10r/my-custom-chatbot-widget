@@ -114,6 +114,10 @@ declare global {
             // config here so unsaved edits (displayMode, inline.showHeader, etc.)
             // take effect without a round-trip to /api/widget-config.
             widget?: Partial<WidgetAvailability>;
+            // Preview mode: dashboard injects the owner's real subscription
+            // status so the preview mirrors what visitors would actually see
+            // (inactive → placeholder / red bubble instead of a live widget).
+            membershipStatus?: 'active' | 'trial' | 'inactive';
         };
     }
 }
@@ -226,9 +230,11 @@ const initializeChatbot = async () => {
 
     // In preview mode the dashboard passes live (unsaved) edits inline — the
     // remote saved theme must not override them, so skip the fetch.
-    // Membership check is also skipped — trial may be expired for test accounts.
+    // Membership: preview reads from window.optinbotConfig.membershipStatus
+    // (dashboard injects the owner's real status). Falls back to 'active' if
+    // absent so older dashboard builds still render a working preview.
     const [membershipStatus, remoteConfig] = isPreviewMode
-        ? (['active', { theme: null, widget: DEFAULT_WIDGET_AVAILABILITY }] as const)
+        ? ([window.optinbotConfig?.membershipStatus ?? 'active', { theme: null, widget: DEFAULT_WIDGET_AVAILABILITY }] as const)
         : await Promise.all([
             getMembershipStatus(clientId),
             chatbotId ? fetchWidgetConfig(chatbotId) : Promise.resolve({ theme: null, widget: DEFAULT_WIDGET_AVAILABILITY }),

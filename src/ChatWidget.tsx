@@ -694,6 +694,19 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     };
 
     if (membershipStatus === 'inactive') {
+        // Inline mode: render a friendly placeholder that fills the customer's
+        // container instead of a floating red bubble (which ignores the inline
+        // layout and leaves the sized <div> blank on the page).
+        if (isInline) {
+            return (
+                <div className="chat-widget-container inline chat-widget-offline">
+                    <div className="chat-widget-offline-inner">
+                        <div className="chat-widget-offline-title">Chat is currently unavailable</div>
+                        <div className="chat-widget-offline-body">This chat isn&apos;t accepting messages right now. Please check back later.</div>
+                    </div>
+                </div>
+            );
+        }
         return (
             <div className={`chat-widget-container ${finalTheme.buttonPosition || 'bottom-right'}`}>
                 <button className="chat-bubble-button" style={{ backgroundColor: '#D32F2F' }}>
