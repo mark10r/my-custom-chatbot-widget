@@ -152,7 +152,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     const restored = React.useMemo(() => (isPreview ? null : loadPersistedSession(chatbotId)), [chatbotId, isPreview]);
 
     // State
-    const [isOpen, setIsOpen] = useState(false);
+    // Inline mode: the chat window is always visible, so start "open" so the
+    // welcome-message effect + any isOpen-gated logic fires on mount instead
+    // of waiting for a bubble click (which doesn't exist in inline).
+    const [isOpen, setIsOpen] = useState(isInline);
     const [messages, setMessages] = useState<{ type: 'user' | 'bot' | 'rating'; text: string; timestamp: Date; rating?: 'up' | 'down'; feedback?: string; showBookingCard?: boolean }[]>(
         // Any showBookingCard flag from a prior session is intentionally dropped —
         // the confirmation is captured in the synthetic bot message we append
