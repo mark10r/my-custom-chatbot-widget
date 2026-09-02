@@ -167,7 +167,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         // useEffect-based approach was fragile in inline (never fired without
         // an open event) and depended on isOpen state timing.
         () => {
-            if (restored) return restored.messages.map(m => ({ ...m, timestamp: new Date(m.timestamp), showBookingCard: undefined }));
+            if (restored && restored.messages.length > 0) return restored.messages.map(m => ({ ...m, timestamp: new Date(m.timestamp), showBookingCard: undefined }));
             const welcomeText = ({ ...defaultConfig.theme, ...theme }).welcomeMessage;
             if (welcomeText && welcomeText.trim()) return [{ type: 'bot' as const, text: welcomeText, timestamp: new Date() }];
             return [];
