@@ -161,7 +161,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         // the confirmation is captured in the synthetic bot message we append
         // after a successful booking, so rehydrated sessions never re-render a
         // stale picker.
-        () => restored ? restored.messages.map(m => ({ ...m, timestamp: new Date(m.timestamp), showBookingCard: undefined })) : []
+        // Inline mode: seed the welcome message directly in initial state so
+        // it's visible on first paint (bubble mode's useEffect-based welcome
+        // fires on open, which never happens for inline).
+        () => {
+            if (restored) return restored.messages.map(m => ({ ...m, timestamp: new Date(m.timestamp), showBookingCard: undefined }));
+            const welcomeText = { ...defaultConfig.theme, ...theme }.welcomeMessage;
+            if (isInline && welcomeText) return [{ type: 'bot' as const, text: welcomeText, timestamp: new Date() }];
+            return [];
+        }
     );
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
