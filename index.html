@@ -9,7 +9,28 @@
   <body>
     <!-- THIS IS THE DIV FOR YOUR LOCAL DEVELOPMENT PAGE -->
     <!-- It MUST match the ID used in src/main.tsx -->
-    <div id="optinbot-chatbot-container"></div> 
+    <div id="optinbot-chatbot-container"></div>
+
+    <!-- Local dev only: pick a widget variant via URL query.
+         ?variant=classic|modern|professional|minimalist
+         ?mode=inline (adds inline embed mode)
+         Leave the query off to get 'classic' + bubble mode. -->
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var variant = params.get('variant');
+        var mode = params.get('mode');
+        window.optinbotConfig = window.optinbotConfig || {};
+        if (variant) window.optinbotConfig.variant = variant;
+        if (mode === 'inline') {
+          var el = document.getElementById('optinbot-chatbot-container');
+          if (el) {
+            el.setAttribute('data-optinbot-mode', 'inline');
+            el.setAttribute('style', 'width: 400px; height: 600px; margin: 40px;');
+          }
+        }
+      })();
+    </script>
 
     <!-- This script loads your React application -->
     <script type="module" src="/src/main.tsx"></script>

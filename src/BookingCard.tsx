@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { Translator, ResolvedLocale } from './i18n';
 
 export const SCHEDULE_MEETING_TOKEN = '[SCHEDULE_MEETING]';
 
@@ -32,23 +33,28 @@ type Props = {
     prefillName?: string;
     prefillEmail?: string;
     onBooked: (info: { slot: Slot; meetLink: string | null; timezone: string; email: string }) => void;
+    t: Translator;
+    locale: ResolvedLocale;
 };
 
 const API_BASE = 'https://app.optinbot.io';
 
-function formatDate(iso: string, timeZone: string) {
+function bcp47(locale: ResolvedLocale): string {
+    return locale === 'es' ? 'es-ES' : 'en-US';
+}
+function formatDate(iso: string, timeZone: string, locale: ResolvedLocale) {
     const [y, m, d] = iso.split('-').map(Number);
     const dt = new Date(Date.UTC(y, m - 1, d, 12));
-    return new Intl.DateTimeFormat(undefined, { timeZone, weekday: 'short', month: 'short', day: 'numeric' }).format(dt);
+    return new Intl.DateTimeFormat(bcp47(locale), { timeZone, weekday: 'short', month: 'short', day: 'numeric' }).format(dt);
 }
-function formatTime(iso: string, timeZone: string) {
-    return new Intl.DateTimeFormat(undefined, { timeZone, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+function formatTime(iso: string, timeZone: string, locale: ResolvedLocale) {
+    return new Intl.DateTimeFormat(bcp47(locale), { timeZone, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
 }
-function shortDate(iso: string, timeZone: string) {
-    return new Intl.DateTimeFormat(undefined, { timeZone, weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(iso));
+function shortDate(iso: string, timeZone: string, locale: ResolvedLocale) {
+    return new Intl.DateTimeFormat(bcp47(locale), { timeZone, weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(iso));
 }
 
-export default function BookingCard({ clientId, chatbotId, sessionId, prefillName = '', prefillEmail = '', onBooked }: Props) {
+export default function BookingCard({ clientId, chatbotId, sessionId, prefillName = '', prefillEmail = '', onBooked, t, locale }: Props) {
     const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
 
     const loadAvailability = async () => {
@@ -64,21 +70,21 @@ export default function BookingCard({ clientId, chatbotId, sessionId, prefillNam
                 setPhase({
                     kind: 'error',
                     message: data.error === 'not_configured'
-                        ? 'Booking isn\'t set up for this chatbot yet.'
-                        : 'Couldn\'t load available times. Please try again.',
+                        ? t('booking_err_not_setup')
+                        : t('booking_err_load'),
                     canRetry: data.error !== 'not_configured',
                 });
                 return;
             }
             const dates: DateBlock[] = (data.dates as DateBlock[]).filter(d => d.slots.length > 0);
             if (dates.length === 0) {
-                setPhase({ kind: 'error', message: 'No open times in the next 7 days.', canRetry: true });
+                setPhase({ kind: 'error', message: t('booking_err_no_open_times'), canRetry: true });
                 return;
             }
             const full: AvailabilityResponse = { ...data, dates };
             setPhase({ kind: 'picking-date', data: full, selectedDate: dates[0].date });
         } catch {
-            setPhase({ kind: 'error', message: 'Network error. Please try again.', canRetry: true });
+            setPhase({ kind: 'error', message: t('booking_err_network'), canRetry: true });
         }
     };
 
@@ -106,9 +112,9 @@ export default function BookingCard({ clientId, chatbotId, sessionId, prefillNam
             const data: CreateResponse & { error?: string } = await res.json();
             if (!res.ok || data.error) {
                 if (data.error === 'slot_taken') {
-                    setPhase({ kind: 'error', message: 'That time was just taken. Please pick another.', canRetry: true });
+                    setPhase({ kind: 'error', message: t('booking_err_taken'), canRetry: true });
                 } else {
-                    setPhase({ kind: 'error', message: 'Couldn\'t book that time. Please try again.', canRetry: true });
+                    setPhase({ kind: 'error', message: t('booking_err_book_failed'), canRetry: true });
                 }
                 return;
             }
@@ -116,14 +122,14 @@ export default function BookingCard({ clientId, chatbotId, sessionId, prefillNam
             setPhase({ kind: 'booked', slot: phase.slot, meetLink: data.meetLink, email, timezone });
             onBooked({ slot: phase.slot, meetLink: data.meetLink, timezone, email });
         } catch {
-            setPhase({ kind: 'error', message: 'Network error. Please try again.', canRetry: true });
+            setPhase({ kind: 'error', message: t('booking_err_network'), canRetry: true });
         }
     };
 
     if (phase.kind === 'loading') {
         return (
             <div className="booking-card">
-                <div className="booking-card-title">Finding open times…</div>
+                <div className="booking-card-title">{t('booking_finding_times')}</div>
                 <div className="booking-loading"><span className="dot" /><span className="dot" /><span className="dot" /></div>
             </div>
         );
@@ -132,10 +138,10 @@ export default function BookingCard({ clientId, chatbotId, sessionId, prefillNam
     if (phase.kind === 'error') {
         return (
             <div className="booking-card">
-                <div className="booking-card-title">Booking</div>
+                <div className="booking-card-title">{t('booking_error_title')}</div>
                 <div className="booking-error">{phase.message}</div>
                 {phase.canRetry && (
-                    <button className="booking-primary" onClick={loadAvailability}>Try again</button>
+                    <button className="booking-primary" onClick={loadAvailability}>{t('booking_try_again')}</button>
                 )}
             </div>
         );
@@ -144,14 +150,14 @@ export default function BookingCard({ clientId, chatbotId, sessionId, prefillNam
     if (phase.kind === 'booked') {
         return (
             <div className="booking-card">
-                <div className="booking-card-title">You&apos;re all set 🎉</div>
+                <div className="booking-card-title">{t('booking_all_set')}</div>
                 <div className="booking-confirmation">
-                    <div><strong>{shortDate(phase.slot.start, phase.timezone)}</strong></div>
-                    <div>{formatTime(phase.slot.start, phase.timezone)} – {formatTime(phase.slot.end, phase.timezone)}</div>
-                    <div className="booking-muted">We&apos;ve sent an invite to {phase.email}.</div>
+                    <div><strong>{shortDate(phase.slot.start, phase.timezone, locale)}</strong></div>
+                    <div>{formatTime(phase.slot.start, phase.timezone, locale)} – {formatTime(phase.slot.end, phase.timezone, locale)}</div>
+                    <div className="booking-muted">{t('booking_invite_sent', { email: phase.email })}</div>
                     {phase.meetLink && (
                         <a className="booking-meet-link" href={phase.meetLink} target="_blank" rel="noopener noreferrer">
-                            Join Google Meet
+                            {t('booking_join_meet')}
                         </a>
                     )}
                 </div>
@@ -163,7 +169,7 @@ export default function BookingCard({ clientId, chatbotId, sessionId, prefillNam
         const selected = phase.data.dates.find(d => d.date === phase.selectedDate) ?? phase.data.dates[0];
         return (
             <div className="booking-card">
-                <div className="booking-card-title">Pick a time</div>
+                <div className="booking-card-title">{t('booking_pick_time')}</div>
                 <div className="booking-date-strip">
                     {phase.data.dates.map(d => (
                         <button
@@ -171,7 +177,7 @@ export default function BookingCard({ clientId, chatbotId, sessionId, prefillNam
                             className={`booking-date ${d.date === phase.selectedDate ? 'selected' : ''}`}
                             onClick={() => setPhase({ ...phase, selectedDate: d.date })}
                         >
-                            {formatDate(d.date, phase.data.timezone)}
+                            {formatDate(d.date, phase.data.timezone, locale)}
                         </button>
                     ))}
                 </div>
@@ -192,7 +198,7 @@ export default function BookingCard({ clientId, chatbotId, sessionId, prefillNam
                                 })
                             }
                         >
-                            {formatTime(s.start, phase.data.timezone)}
+                            {formatTime(s.start, phase.data.timezone, locale)}
                         </button>
                     ))}
                 </div>
@@ -204,21 +210,21 @@ export default function BookingCard({ clientId, chatbotId, sessionId, prefillNam
     const canSubmit = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phase.email.trim()) && !phase.submitting;
     return (
         <div className="booking-card">
-            <div className="booking-card-title">Confirm your booking</div>
+            <div className="booking-card-title">{t('booking_confirm_title')}</div>
             <div className="booking-summary">
-                <div><strong>{shortDate(phase.slot.start, phase.data.timezone)}</strong></div>
-                <div>{formatTime(phase.slot.start, phase.data.timezone)} – {formatTime(phase.slot.end, phase.data.timezone)}</div>
+                <div><strong>{shortDate(phase.slot.start, phase.data.timezone, locale)}</strong></div>
+                <div>{formatTime(phase.slot.start, phase.data.timezone, locale)} – {formatTime(phase.slot.end, phase.data.timezone, locale)}</div>
             </div>
             <input
                 className="booking-input"
-                placeholder="Your name"
+                placeholder={t('booking_name_ph')}
                 value={phase.name}
                 onChange={(e) => setPhase({ ...phase, name: e.target.value })}
             />
             <input
                 className="booking-input"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={t('booking_email_ph')}
                 value={phase.email}
                 onChange={(e) => setPhase({ ...phase, email: e.target.value })}
             />
@@ -227,10 +233,10 @@ export default function BookingCard({ clientId, chatbotId, sessionId, prefillNam
                     className="booking-secondary"
                     onClick={() => setPhase({ kind: 'picking-date', data: phase.data, selectedDate: phase.selectedDate })}
                 >
-                    Back
+                    {t('booking_back')}
                 </button>
                 <button className="booking-primary" onClick={submitBooking} disabled={!canSubmit}>
-                    {phase.submitting ? 'Booking…' : 'Confirm'}
+                    {phase.submitting ? t('booking_submitting') : t('booking_confirm')}
                 </button>
             </div>
         </div>

@@ -4,6 +4,7 @@ import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import ChatWidget from './ChatWidget.tsx';
+import { normalizeVariant, type WidgetVariant, type VariantStyleConfig } from './widget-styles';
 import './index.css';
 
 // Widget errors surface in the same Sentry project as the dashboard, tagged
@@ -32,14 +33,18 @@ Sentry.init({
   ],
 });
 
-// Define a default configuration
+// Define a default configuration.
+// primaryColor / bubble colors intentionally left empty here so the widget
+// can fall back to the picked variant's defaults when the customer hasn't
+// customized (dev mode, or new customer whose dashboard record has no theme).
 export const defaultConfig = {
     theme: {
-        primaryColor: '#08788bff',
-        userBubbleColor: '#d2f2f7ff',
-        botBubbleColor: '#e4e2e2ff',
+        primaryColor: '',
+        userBubbleColor: '',
+        botBubbleColor: '',
         buttonPosition: 'bottom-right',
         welcomeMessage: 'Hello! How can I help you? 👋',
+        showWelcomeMessage: true,
         customIconUrl: 'https://res.cloudinary.com/dlasog0p4/image/upload/v1771024412/tt4niyw5bwyif5x26f96.svg',
         headerTitle: 'AI Assistant',
         showOnlineStatus: true,
@@ -84,6 +89,9 @@ export type WidgetAvailability = {
     inline?: {
         showHeader?: boolean;
     };
+    // Visitor-facing UI language. 'auto' derives from navigator.language.
+    // Independent of the operator's dashboard locale.
+    locale?: 'auto' | 'en' | 'es';
 };
 
 const DEFAULT_WIDGET_AVAILABILITY: WidgetAvailability = {
@@ -118,6 +126,10 @@ declare global {
             // status so the preview mirrors what visitors would actually see
             // (inactive → placeholder / red bubble instead of a live widget).
             membershipStatus?: 'active' | 'trial' | 'inactive';
+            // Widget style variant + variant-specific config overrides.
+            // Missing / unknown variant falls back to 'classic'.
+            variant?: WidgetVariant;
+            variantStyle?: VariantStyleConfig;
         };
     }
 }
@@ -148,6 +160,8 @@ const getMembershipStatus = async (clientId: string): Promise<'active' | 'inacti
 const fetchWidgetConfig = async (chatbotId: string): Promise<{
     theme: Partial<typeof defaultConfig.theme> | null;
     widget: WidgetAvailability;
+    variant: WidgetVariant | null;
+    variantStyle: VariantStyleConfig | null;
 }> => {
     try {
         const response = await fetch('https://app.optinbot.io/api/widget-config', {
@@ -155,13 +169,15 @@ const fetchWidgetConfig = async (chatbotId: string): Promise<{
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chatbotId }),
         });
-        if (!response.ok) return { theme: null, widget: DEFAULT_WIDGET_AVAILABILITY };
+        if (!response.ok) return { theme: null, widget: DEFAULT_WIDGET_AVAILABILITY, variant: null, variantStyle: null };
         const data = await response.json();
         return {
             theme: data.theme && typeof data.theme === 'object' ? data.theme : null,
             widget: (data.widget && typeof data.widget === 'object') ? data.widget : DEFAULT_WIDGET_AVAILABILITY,
+            variant: typeof data.variant === 'string' ? normalizeVariant(data.variant) : null,
+            variantStyle: data.variantStyle && typeof data.variantStyle === 'object' ? data.variantStyle : null,
         };
-    } catch { return { theme: null, widget: DEFAULT_WIDGET_AVAILABILITY }; }
+    } catch { return { theme: null, widget: DEFAULT_WIDGET_AVAILABILITY, variant: null, variantStyle: null }; }
 };
 
 const DAY_KEYS: ScheduleDayKey[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -234,10 +250,10 @@ const initializeChatbot = async () => {
     // (dashboard injects the owner's real status). Falls back to 'active' if
     // absent so older dashboard builds still render a working preview.
     const [membershipStatus, remoteConfig] = isPreviewMode
-        ? ([window.optinbotConfig?.membershipStatus ?? 'active', { theme: null, widget: DEFAULT_WIDGET_AVAILABILITY }] as const)
+        ? ([window.optinbotConfig?.membershipStatus ?? 'active', { theme: null, widget: DEFAULT_WIDGET_AVAILABILITY, variant: null as WidgetVariant | null, variantStyle: null as VariantStyleConfig | null }] as const)
         : await Promise.all([
             getMembershipStatus(clientId),
-            chatbotId ? fetchWidgetConfig(chatbotId) : Promise.resolve({ theme: null, widget: DEFAULT_WIDGET_AVAILABILITY }),
+            chatbotId ? fetchWidgetConfig(chatbotId) : Promise.resolve({ theme: null, widget: DEFAULT_WIDGET_AVAILABILITY, variant: null as WidgetVariant | null, variantStyle: null as VariantStyleConfig | null }),
         ]);
 
     const finalConfig = {
@@ -267,11 +283,21 @@ const initializeChatbot = async () => {
     const displayMode: 'bubble' | 'inline' = widgetAvailability.displayMode ?? embedMode;
     const showInlineHeader: boolean = widgetAvailability.inline?.showHeader ?? true;
 
-    // Inline mode never renders on mobile — customers on phones/tablets get
-    // nothing (per product decision). Bubble mode is unaffected.
-    if (displayMode === 'inline' && !isPreviewMode && window.matchMedia('(max-width: 767px)').matches) {
-        return;
-    }
+    // Variant: preview inline > server-saved > default 'classic'.
+    const resolvedVariant: WidgetVariant = normalizeVariant(
+        window.optinbotConfig?.variant ?? remoteConfig.variant
+    );
+    const resolvedVariantStyle: VariantStyleConfig = {
+        ...(remoteConfig.variantStyle ?? {}),
+        ...(window.optinbotConfig?.variantStyle ?? {}),
+    };
+
+    // Inline mode now renders on mobile too. Sizing is the customer's
+    // responsibility — they should use responsive CSS on their
+    // #optinbot-chatbot-container (e.g. width:100%, max-width:400px). Inline
+    // widget CSS fills 100% of the container so it adapts to whatever space
+    // is available. (Previously we returned early on mobile, which left phone
+    // visitors with no chat access — reversed per product decision.)
 
     const root: Root = createRoot(container);
 
@@ -281,16 +307,103 @@ const initializeChatbot = async () => {
         const [preview, setPreview] = React.useState(isPreviewMode);
         const [liveTick, setLiveTick] = React.useState(0);
 
+        // Live-editable config. Seeded from the values computed at mount time
+        // (theme merge, resolved variant, etc.). The dashboard preview updates
+        // these via CONFIG_UPDATE postMessage so config edits apply in place
+        // without unmounting the widget.
+        const [liveTheme, setLiveTheme] = React.useState(finalConfig.theme);
+        const [liveVariant, setLiveVariant] = React.useState<WidgetVariant>(resolvedVariant);
+        const [liveVariantStyle, setLiveVariantStyle] = React.useState<VariantStyleConfig>(resolvedVariantStyle);
+        const [liveAvailability, setLiveAvailability] = React.useState<WidgetAvailability>(widgetAvailability);
+        const [liveMembership, setLiveMembership] = React.useState<'active' | 'inactive' | 'trial'>(
+            membershipStatus === 'active' || membershipStatus === 'inactive' || membershipStatus === 'trial'
+                ? membershipStatus
+                : 'inactive'
+        );
+        // Dashboard preview drives Open/Closed via SET_OPEN_STATE. null =
+        // widget's own toggle owns it (production behavior).
+        const [forceOpen, setForceOpen] = React.useState<'open' | 'closed' | null>(null);
+        // Dashboard preview tells us whether it's simulating a mobile viewport
+        // so the widget can re-enable its full-screen mobile behavior inside a
+        // phone frame. Undefined means "we're in real production, not preview".
+        const [previewDevice, setPreviewDevice] = React.useState<'desktop' | 'mobile' | null>(null);
+        // Bumped by dashboard when the user clicks a "Test" button in the
+        // Launch Behavior group. ChatWidget resets its internal timers and
+        // closes so the configured auto-open + welcome-bubble timers re-fire
+        // and can be observed in the preview.
+        const [launchDemoNonce, setLaunchDemoNonce] = React.useState(0);
+
         React.useEffect(() => {
             const handleMessage = (event: MessageEvent) => {
                 // Security check: only allow messages from our own domain
-                if (event.origin.includes('optinbot.io') || isLocal) {
-                    if (event.data?.type === 'SET_PREVIEW_MODE') {
-                        setPreview(!!event.data.value);
+                // Trust: production dashboard on optinbot.io; local dev on any
+                // localhost port (dashboard dev server is 3000/9002/etc); and
+                // srcdoc iframes (event.origin === 'null'), since srcdoc can
+                // only be posted to by its parent, which set it up.
+                const trustedOrigin =
+                    event.origin.includes('optinbot.io')
+                    || event.origin.includes('localhost')
+                    || event.origin.includes('127.0.0.1')
+                    || event.origin === 'null'
+                    || isLocal;
+                if (!trustedOrigin) return;
+                const data = event.data;
+                if (!data || typeof data !== 'object') return;
+                if (data.type === 'SET_PREVIEW_MODE') {
+                    setPreview(!!data.value);
+                    return;
+                }
+                if (data.type === 'SET_OPEN_STATE') {
+                    if (data.value === 'open' || data.value === 'closed') setForceOpen(data.value);
+                    else setForceOpen(null);
+                    return;
+                }
+                if (data.type === 'SET_PREVIEW_DEVICE') {
+                    if (data.value === 'desktop' || data.value === 'mobile') setPreviewDevice(data.value);
+                    else setPreviewDevice(null);
+                    return;
+                }
+                if (data.type === 'TRIGGER_LAUNCH_DEMO') {
+                    // Release the forced open state so the widget's own auto-
+                    // open logic can drive it. Then bump the nonce, which the
+                    // ChatWidget uses as a signal to reset its timers.
+                    setForceOpen(null);
+                    setLaunchDemoNonce(n => n + 1);
+                    return;
+                }
+                if (data.type === 'CONFIG_UPDATE') {
+                    // Merge each provided slice. Absent keys leave that slice
+                    // alone. Widget re-renders in place — no unmount.
+                    if (data.theme && typeof data.theme === 'object') {
+                        setLiveTheme(prev => ({ ...prev, ...data.theme }));
                     }
+                    if (typeof data.variant === 'string') {
+                        setLiveVariant(normalizeVariant(data.variant));
+                    }
+                    if (data.variantStyle && typeof data.variantStyle === 'object') {
+                        setLiveVariantStyle(prev => ({ ...prev, ...data.variantStyle }));
+                    }
+                    if (data.widget && typeof data.widget === 'object') {
+                        setLiveAvailability(prev => ({
+                            ...prev,
+                            ...data.widget,
+                            inline: { ...(prev.inline ?? {}), ...(data.widget.inline ?? {}) },
+                        }));
+                    }
+                    if (data.membershipStatus === 'active' || data.membershipStatus === 'inactive' || data.membershipStatus === 'trial') {
+                        setLiveMembership(data.membershipStatus);
+                    }
+                    return;
                 }
             };
             window.addEventListener('message', handleMessage);
+            // Tell the parent we're ready to receive messages. Dashboard uses
+            // this signal to (re)send SET_PREVIEW_MODE + SET_PREVIEW_DEVICE
+            // without racing against the widget's mount. Safe to no-op when
+            // there is no parent (visitor site, top-level tab).
+            if (window.parent && window.parent !== window) {
+                try { window.parent.postMessage({ type: 'WIDGET_READY' }, '*'); } catch {}
+            }
             return () => window.removeEventListener('message', handleMessage);
         }, []);
 
@@ -303,7 +416,7 @@ const initializeChatbot = async () => {
         }, [preview]);
 
         // Preview always renders. Otherwise gate on availability.
-        if (!preview && !isWidgetLive(widgetAvailability)) {
+        if (!preview && !isWidgetLive(liveAvailability)) {
             // Referenced so eslint knows the tick drives re-render decisions.
             void liveTick;
             // Inline mode: customer's container has explicit width/height, so
@@ -339,13 +452,19 @@ const initializeChatbot = async () => {
                 >
                     <ChatWidget
                         n8nWebhookUrl=""
-                        theme={finalConfig.theme}
+                        theme={liveTheme}
                         clientId={finalConfig.clientId}
                         chatbotId={window.optinbotConfig?.chatbotId ?? ''}
-                        membershipStatus={membershipStatus}
+                        membershipStatus={liveMembership}
                         isPreview={preview}
-                        displayMode={displayMode}
-                        showInlineHeader={showInlineHeader}
+                        displayMode={liveAvailability.displayMode ?? displayMode}
+                        showInlineHeader={liveAvailability.inline?.showHeader ?? showInlineHeader}
+                        variant={liveVariant}
+                        variantStyle={liveVariantStyle}
+                        locale={liveAvailability.locale ?? 'auto'}
+                        forceOpen={forceOpen}
+                        previewDevice={previewDevice}
+                        launchDemoNonce={launchDemoNonce}
                     />
                 </Sentry.ErrorBoundary>
             </React.StrictMode>

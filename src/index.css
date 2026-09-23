@@ -1,5 +1,9 @@
 /* src/index.css - Optimized for Client Customization (CSS Variables) */
 
+/* Fonts for widget style variants. Must precede all other rules per CSS spec. */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600&display=swap');
+
 /* Define CSS Variables on the root container for easy access */
 .chat-widget-container {
     all: unset;
@@ -166,18 +170,23 @@
 
 .mini-welcome-bubble {
     position: absolute;
-    padding: 8px 12px;
+    padding: 10px 32px 10px 14px;
     border-radius: 10px;
     font-size: 14px;
-    font-weight: bold;
-    min-width: 200px;
-    max-width: 300px;
+    font-weight: 500;
+    min-width: 140px;
+    max-width: 260px;
     text-align: center;
     cursor: pointer;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     z-index: 999;
-    bottom: 60px;
-    right: 30px;
+    /* Reference frame: teaser is position:absolute inside .chat-widget-container,
+       which sizes itself to the launcher (~60px square). So calc(100% + 8px) puts
+       the teaser's bottom edge 8px above the wrapper's top edge — always exactly
+       8px above the launcher regardless of launcher height. right: 0 aligns the
+       teaser's right edge with the wrapper's right edge = launcher's right edge. */
+    bottom: calc(100% + 8px);
+    right: 0;
     opacity: 0;
     transform: translateY(10px);
     animation: fadeInPopUp 0.5s ease-out forwards;
@@ -186,10 +195,14 @@
     color: var(--welcome-bubble-text-color);
 }
 
-.chat-widget-container.bottom-right .mini-welcome-bubble { bottom: 60px; right: 60px; }
-.chat-widget-container.bottom-left .mini-welcome-bubble { bottom: 60px; left: 60px; }
-.chat-widget-container.top-right .mini-welcome-bubble { top: 60px; right: 60px; }
-.chat-widget-container.top-left .mini-welcome-bubble { top: 60px; left: 60px; }
+/* Corner-anchored teaser positioning. Sits snug against the launcher — always
+   8px away along the launcher's short axis, edge-aligned along the long axis.
+   `calc(100% + 8px)` refers to the wrapper's own dimension (wrapper sizes to
+   the launcher), so this is launcher-height-agnostic. */
+.chat-widget-container.bottom-right .mini-welcome-bubble { bottom: calc(100% + 8px); right: 0; }
+.chat-widget-container.bottom-left  .mini-welcome-bubble { bottom: calc(100% + 8px); left: 0; }
+.chat-widget-container.top-right    .mini-welcome-bubble { top: calc(100% + 8px);    right: 0; }
+.chat-widget-container.top-left     .mini-welcome-bubble { top: calc(100% + 8px);    left: 0; }
 
 @keyframes fadeInPopUp {
     from { opacity: 0; transform: translateY(10px); }
@@ -522,30 +535,26 @@
 
 .message.bot .message-bubble { border-bottom-left-radius: 5px; }
 
+/* Input row: plain flex, no shared border. The textarea gets its own pill /
+   border below (or per-variant styling), and the send button sits as a
+   separate sibling to its right. */
 .chat-input-area {
     display: flex;
     position: relative;
-    align-items: flex-end; 
-    border: 1px solid var(--input-border-color);
-    border-radius: 20px;
-    margin: 3px 15px 15px 15px;
-    background-color: var(--chat-window-bg-color);
-    transition: border-color 0.2s ease-in-out;
-    padding-right: 8px; 
-    overflow: hidden;
-    flex-shrink: 0; 
-}
-
-.chat-input-area:focus-within {
-    border-color: var(--primary-color);
+    align-items: center;
+    gap: 8px;
+    /* Tight vertical rhythm — FAQs above sit 4px away, footer below sits 6px away. */
+    margin: 4px 14px 6px 14px;
+    flex-shrink: 0;
 }
 
 .chat-input-area textarea {
-    flex-grow: 1; 
-    border: none !important;
-    outline: none !important;
-    background: transparent;
-    padding: 10px 10px 10px 15px; 
+    flex-grow: 1;
+    outline: none;
+    background: var(--chat-window-bg-color, #ffffff);
+    border: 1px solid var(--input-border-color);
+    border-radius: 20px;
+    padding: 10px 16px;
     font-size: 14px;
     color: #333;
     resize: none;
@@ -555,27 +564,40 @@
     font-family: inherit;
     overflow-y: auto;
     display: block;
+    transition: border-color 0.2s ease-in-out;
+    /* Hide native textarea scrollbar (arrows/thumb) — the content still
+       scrolls, just without the visible chrome that fights the design. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.chat-input-area textarea::-webkit-scrollbar { display: none; }
+
+.chat-input-area textarea:focus {
+    border-color: var(--primary-color);
 }
 
 .chat-input-area textarea::placeholder {
     color: #6e6e6e;
 }
 
+/* Send button is now a full component (pill/circle w/ inline SVG),
+   not a bare transparent img wrapper. Sizing + variant look is set below. */
 .send-icon-button {
-    background: transparent;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    flex-shrink: 0; 
-    margin-bottom: 7px; 
-    display: flex;
+    background: var(--primary-color);
+    color: #ffffff;
+    border: 0;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: filter 150ms ease;
 }
-
-.send-icon-button:hover {
-    background: transparent;
-}
+.send-icon-button:hover { filter: brightness(1.08); }
+.send-icon-button svg { width: 16px; height: 16px; }
 
 .send-icon-button img {
     width: 25px;
@@ -606,14 +628,16 @@
 }
 
 .chat-powered-by {
-    padding: 5px 15px;
+    padding: 6px 15px 8px;
     text-align: center;
     font-size: 11px;
     font-weight: normal;
     color: var(--powered-by-text-color);
     background-color: var(--powered-by-bg-color);
-    border-top: 1px solid var(--input-border-color);
-    flex-shrink: 0; 
+    /* No divider line above by default — each variant that wants one
+       (only Professional in the spec) adds its own via the variant block. */
+    border-top: 0;
+    flex-shrink: 0;
     width: 100%;
     box-sizing: border-box;
 }
@@ -624,13 +648,15 @@
 }
 
 .suggested-messages-area {
-    padding: 5px 15px;
+    padding: 4px 14px 0;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    border-top: 1px solid #E4E2E2;
+    /* No divider between messages list and FAQs — the visual rhythm reads
+       better without a rule, and we want FAQs to feel connected to the
+       input row below (a shared "action strip"). */
     background-color: white;
-    flex-shrink: 0; 
+    flex-shrink: 0;
     position: relative;
 }
 
@@ -651,7 +677,7 @@
     gap: 8px;
     justify-content: flex-start;
     overflow-x: auto;
-    padding: 2px 0 8px 0;
+    padding: 2px 0 0 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
     
@@ -885,4 +911,1217 @@
     color: var(--primary-color);
     font-weight: 600;
     text-decoration: underline;
+}
+
+/* =============================================================
+   ICON SIZING — send / close / rating thumbs use inline SVG that
+   inherits color from parent. Base sizing here; per-variant
+   overrides live below.
+   ============================================================= */
+/* Send button base styling lives in the .chat-input-area rules above.
+   Variant tweaks (size, radius, gradient) live in each variant block below. */
+.chat-widget-container .close-button {
+    background: transparent;
+    color: #ffffff;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.9;
+    transition: opacity 150ms ease, background 150ms ease;
+}
+.chat-widget-container .close-button:hover { opacity: 1; background: rgba(255,255,255,.15); }
+.chat-widget-container .close-button svg { width: 16px; height: 16px; }
+.chat-widget-container .rating-thumb svg { width: 20px; height: 20px; }
+.chat-widget-container .inline-rating-thumb svg { width: 16px; height: 16px; }
+.chat-widget-container .rating-acknowledgment svg,
+.chat-widget-container .inline-rating-acknowledgment svg {
+    vertical-align: -2px;
+    margin-left: 2px;
+}
+
+/* Header avatar initials fallback (used when the variant supports an
+   uploaded avatar but the user hasn't uploaded one). */
+.header-avatar-initials {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+/* Professional's square monogram tile — used in place of the round avatar. */
+.header-avatar-monogram {
+    width: 30px;
+    height: 30px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+/* =============================================================
+   VARIANT: MODERN
+   Sora typography, gradient accent, springy motion, pill launcher.
+   Font @import lives at the top of the file per CSS spec.
+   ============================================================= */
+.chat-widget-container[data-variant="modern"] {
+    font-family: 'Sora', system-ui, sans-serif;
+}
+/* Pill launcher with icon + label */
+.chat-widget-container[data-variant="modern"] .chat-bubble-button {
+    width: auto;
+    min-width: 56px;
+    height: 56px;
+    padding: 0 22px 0 18px;
+    border-radius: 28px;
+    background: var(--accent-gradient, var(--primary-color));
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: 'Sora', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 10px 28px rgba(109, 75, 255, 0.45);
+    cursor: pointer;
+}
+.chat-widget-container[data-variant="modern"] .chat-bubble-button .chat-launcher-label {
+    color: #ffffff;
+    line-height: 1;
+}
+.chat-widget-container[data-variant="modern"] .chat-window {
+    border-radius: 22px !important;
+    box-shadow: 0 24px 55px rgba(80, 60, 180, 0.35);
+    transition: opacity 260ms cubic-bezier(.34,1.56,.64,1),
+                transform 260ms cubic-bezier(.34,1.56,.64,1),
+                visibility 260ms;
+}
+.chat-widget-container[data-variant="modern"] .chat-header {
+    background: var(--accent-gradient, var(--primary-color)) !important;
+}
+.chat-widget-container[data-variant="modern"] .header-avatar-initials,
+.chat-widget-container[data-variant="modern"] .header-avatar {
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+.chat-widget-container[data-variant="modern"] .header-online-dot {
+    width: 8px !important;
+    height: 8px !important;
+    background-color: #4ade80 !important;
+    border-radius: 50% !important;
+    margin-right: 6px !important;
+    display: inline-block;
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+    animation: optinbotModernPulse 1.6s infinite;
+}
+@keyframes optinbotModernPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+    70%  { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+.chat-widget-container[data-variant="modern"] .message-bubble.user {
+    background: var(--accent-gradient, var(--primary-color)) !important;
+    color: #ffffff !important;
+    border-radius: 16px !important;
+    box-shadow: 0 6px 14px rgba(109, 75, 255, 0.28);
+}
+.chat-widget-container[data-variant="modern"] .message-bubble.bot {
+    background: #f3f4f6 !important;
+    color: #1f2937 !important;
+    border-radius: 16px !important;
+}
+.chat-widget-container[data-variant="modern"] .send-icon-button {
+    background: var(--accent-gradient, var(--primary-color));
+}
+.chat-widget-container[data-variant="modern"] .rating-send-button {
+    background: var(--accent-gradient, var(--primary-color)) !important;
+    border-radius: 22px !important;
+    box-shadow: 0 6px 14px rgba(109, 75, 255, 0.32);
+}
+.chat-widget-container[data-variant="modern"] .booking-primary {
+    background: var(--accent-gradient, var(--primary-color)) !important;
+    box-shadow: 0 6px 14px rgba(109, 75, 255, 0.28);
+}
+
+/* =============================================================
+   VARIANT: PROFESSIONAL
+   Boxy, navy + gold, linear motion.
+   ============================================================= */
+.chat-widget-container[data-variant="professional"] {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+/* Square monogram launcher */
+.chat-widget-container[data-variant="professional"] .chat-bubble-button {
+    width: 58px;
+    height: 58px;
+    border-radius: 6px !important;
+    background: var(--primary-color);
+    color: #ffffff;
+    border-bottom: 2px solid var(--gold-accent, #c9a35c);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    box-shadow: 0 6px 16px rgba(15, 37, 64, 0.3);
+    cursor: pointer;
+}
+.chat-widget-container[data-variant="professional"] .chat-bubble-button .chat-launcher-monogram {
+    color: #ffffff;
+    line-height: 1;
+    display: inline-block;
+}
+.chat-widget-container[data-variant="professional"] .chat-window {
+    border-radius: 6px !important;
+    border: 1px solid #d9dee4 !important;
+    box-shadow: 0 12px 28px rgba(15, 37, 64, 0.18);
+    transition: opacity 150ms linear, transform 150ms linear, visibility 150ms;
+}
+.chat-widget-container[data-variant="professional"] .chat-header {
+    border-bottom: 2px solid var(--gold-accent, #c9a35c) !important;
+}
+.chat-widget-container[data-variant="professional"] .message-bubble.bot {
+    background: #ffffff !important;
+    color: #0f2540 !important;
+    border: 1px solid #e2e6eb !important;
+    border-radius: 4px !important;
+}
+.chat-widget-container[data-variant="professional"] .message-bubble.user {
+    background: var(--primary-color) !important;
+    color: #ffffff !important;
+    border-radius: 4px !important;
+}
+.chat-widget-container[data-variant="professional"] .send-icon-button {
+    border-radius: 4px !important;
+    width: 40px;
+    height: 40px;
+}
+.chat-widget-container[data-variant="professional"] .rating-send-button {
+    border-radius: 4px !important;
+    border-bottom: 2px solid var(--gold-accent, #c9a35c) !important;
+}
+.chat-widget-container[data-variant="professional"] .booking-primary {
+    border-radius: 4px !important;
+    border-bottom: 2px solid var(--gold-accent, #c9a35c) !important;
+}
+.chat-widget-container[data-variant="professional"] .booking-date,
+.chat-widget-container[data-variant="professional"] .booking-time {
+    border-radius: 3px !important;
+}
+
+/* =============================================================
+   VARIANT: MINIMALIST
+   No header, minimal shadows, Work Sans 300, transparent bot bubble.
+   Font @import lives at the top of the file per CSS spec.
+   ============================================================= */
+.chat-widget-container[data-variant="minimalist"] {
+    font-family: 'Work Sans', system-ui, sans-serif;
+    font-weight: 300;
+}
+/* Circle-of-dots launcher */
+.chat-widget-container[data-variant="minimalist"] .chat-bubble-button {
+    width: 54px;
+    height: 54px;
+    border-radius: 50% !important;
+    background: #ffffff !important;
+    border: 1.5px solid var(--primary-color) !important;
+    color: var(--primary-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+    cursor: pointer;
+}
+.chat-widget-container[data-variant="minimalist"] .chat-launcher-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    display: block;
+}
+/* No header — floating close button over the message area */
+.chat-widget-container[data-variant="minimalist"] .close-button-floating {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    background: transparent;
+    color: #2a2a26;
+    opacity: 0.5;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.chat-widget-container[data-variant="minimalist"] .close-button-floating:hover { opacity: 1; }
+.chat-widget-container[data-variant="minimalist"] .close-button-floating svg { width: 14px; height: 14px; stroke-width: 1.5; }
+.chat-widget-container[data-variant="minimalist"] .chat-window {
+    border-radius: 2px !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.09) !important;
+    transition: opacity 280ms ease, transform 280ms ease, visibility 280ms;
+}
+.chat-widget-container[data-variant="minimalist"] .chat-messages {
+    padding-top: 40px !important;
+}
+.chat-widget-container[data-variant="minimalist"] .message-bubble.bot {
+    background: transparent !important;
+    padding: 0 !important;
+    color: #2a2a26 !important;
+    border-radius: 0 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .message-bubble.user {
+    background: #f3f6f2 !important;
+    color: #2a2a26 !important;
+    border-radius: 2px !important;
+    font-weight: 400;
+}
+.chat-widget-container[data-variant="minimalist"] .chat-input-area {
+    border-top: 0 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .chat-input-area textarea {
+    background: transparent !important;
+    border-bottom: 1px solid #d5d3cd !important;
+    border-radius: 0 !important;
+    font-weight: 300;
+}
+.chat-widget-container[data-variant="minimalist"] .send-icon-button {
+    background: var(--primary-color);
+    width: 32px;
+    height: 32px;
+}
+.chat-widget-container[data-variant="minimalist"] .send-icon-button svg { width: 14px; height: 14px; }
+.chat-widget-container[data-variant="minimalist"] .rating-send-button {
+    background: transparent !important;
+    color: var(--primary-color) !important;
+    border: 1.5px solid var(--primary-color) !important;
+    border-radius: 2px !important;
+    font-weight: 500;
+}
+.chat-widget-container[data-variant="minimalist"] .booking-primary {
+    background: transparent !important;
+    color: var(--primary-color) !important;
+    border: 1.5px solid var(--primary-color) !important;
+    border-radius: 2px !important;
+    font-weight: 500;
+}
+.chat-widget-container[data-variant="minimalist"] .booking-date,
+.chat-widget-container[data-variant="minimalist"] .booking-time {
+    border-radius: 2px !important;
+}
+.chat-widget-container[data-variant="minimalist"] .chat-powered-by {
+    font-weight: 300;
+    letter-spacing: 0.02em;
+}
+
+/* =============================================================
+   Chat window border — Classic keeps a subtle accent-tinted border,
+   Modern and Minimalist lean on shadow only, Professional gets a grey rule.
+   Overrides base .chat-window { border: 2px solid var(--primary-color) }.
+   ============================================================= */
+.chat-widget-container[data-variant="classic"] .chat-window {
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+.chat-widget-container[data-variant="modern"] .chat-window {
+    border: 0 !important;
+}
+.chat-widget-container[data-variant="professional"] .chat-window {
+    border: 1px solid #d9dee4 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .chat-window {
+    border: 0 !important;
+}
+
+/* =============================================================
+   Chat input area — per-variant wrapper + textarea styling.
+   Overrides base .chat-input-area (pill w/ grey border by default).
+   ============================================================= */
+
+/* Modern — the TEXTAREA becomes the pill (neutral grey — brand-agnostic
+   since customers can't tint the bubbles/input, only the accent gradient);
+   send button sits outside as its own gradient circle sibling. */
+.chat-widget-container[data-variant="modern"] .chat-input-area textarea {
+    background-color: #f3f4f6 !important;
+    border: 1px solid transparent !important;
+    border-radius: 22px !important;
+    color: #1f2937 !important;
+    font-family: 'Sora', sans-serif;
+}
+.chat-widget-container[data-variant="modern"] .chat-input-area textarea:focus {
+    border-color: rgba(0, 0, 0, 0.15) !important;
+}
+.chat-widget-container[data-variant="modern"] .chat-input-area textarea::placeholder {
+    color: rgba(31, 41, 55, 0.5);
+}
+
+/* Professional — square-cornered textarea with a thin grey border. */
+.chat-widget-container[data-variant="professional"] .chat-input-area textarea {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e6eb !important;
+    border-radius: 4px !important;
+    color: #0f2540 !important;
+    padding: 9px 12px !important;
+}
+.chat-widget-container[data-variant="professional"] .chat-input-area textarea:focus {
+    border-color: #0f2540 !important;
+}
+
+/* Minimalist — no box, just a bottom hairline under the textarea. */
+.chat-widget-container[data-variant="minimalist"] .chat-input-area {
+    margin: 4px 16px 8px !important;
+}
+.chat-widget-container[data-variant="minimalist"] .chat-input-area textarea {
+    background-color: transparent !important;
+    border: 0 !important;
+    border-bottom: 1px solid #d5d3cd !important;
+    border-radius: 0 !important;
+    color: #2a2a26 !important;
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 300;
+    padding: 8px 4px !important;
+}
+.chat-widget-container[data-variant="minimalist"] .chat-input-area textarea:focus {
+    border-bottom-color: #5c7a63 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .chat-input-area textarea::placeholder {
+    color: rgba(42, 42, 38, 0.4);
+    font-weight: 300;
+}
+
+/* =============================================================
+   Send-button icon color inside the input area — ensure the SVG
+   stroke picks up currentColor and the button pill/circle fits.
+   The base .send-icon-button now hosts an inline <svg>, so give it
+   real padding and a visible bg per variant (already declared above).
+   ============================================================= */
+.chat-widget-container[data-variant="modern"] .send-icon-button {
+    margin: 4px !important;
+    width: 36px !important;
+    height: 36px !important;
+}
+.chat-widget-container[data-variant="professional"] .send-icon-button {
+    margin: 4px !important;
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 3px !important;
+}
+.chat-widget-container[data-variant="minimalist"] .send-icon-button {
+    margin: 0 0 4px 8px !important;
+}
+
+/* =============================================================
+   Suggested messages ("frequently asked questions") — variant treatments.
+   Base is filled grey pills. Each variant leans into its own visual world.
+   ============================================================= */
+.chat-widget-container[data-variant="modern"] .suggested-message-button {
+    background-color: #ffffff !important;
+    color: var(--primary-color) !important;
+    border: 1px solid var(--primary-color) !important;
+    border-radius: 14px !important;
+    font-family: 'Sora', sans-serif;
+    font-weight: 500;
+}
+.chat-widget-container[data-variant="modern"] .suggested-message-button:hover {
+    background: var(--accent-gradient, var(--primary-color)) !important;
+    color: #ffffff !important;
+    border-color: transparent !important;
+}
+.chat-widget-container[data-variant="modern"] .chat-messages {
+    background-color: #ffffff !important;
+}
+.chat-widget-container[data-variant="modern"] .suggested-messages-area {
+    background-color: white;
+}
+
+.chat-widget-container[data-variant="professional"] .suggested-message-button {
+    background-color: #ffffff !important;
+    color: #0f2540 !important;
+    border: 1px solid #e2e6eb !important;
+    border-radius: 3px !important;
+    font-weight: 500;
+}
+.chat-widget-container[data-variant="professional"] .suggested-message-button:hover {
+    background-color: #0f2540 !important;
+    color: #ffffff !important;
+    border-color: #0f2540 !important;
+}
+
+.chat-widget-container[data-variant="minimalist"] .suggested-message-button {
+    background-color: transparent !important;
+    color: #2a2a26 !important;
+    border: 1px solid #e9e7e0 !important;
+    border-radius: 2px !important;
+    font-weight: 300;
+    font-family: 'Work Sans', sans-serif;
+}
+.chat-widget-container[data-variant="minimalist"] .suggested-message-button:hover {
+    background-color: #f3f6f2 !important;
+    color: #2a2a26 !important;
+    border-color: #5c7a63 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .suggested-messages-area {
+    border-top: 0 !important;
+    background-color: white;
+}
+.chat-widget-container[data-variant="minimalist"] .suggested-messages-area::after {
+    display: none !important;
+}
+
+/* =============================================================
+   Powered by footer — subtle per-variant treatment.
+   ============================================================= */
+.chat-widget-container[data-variant="modern"] .chat-powered-by {
+    color: #a99bd6 !important;
+    letter-spacing: 0.02em;
+    border-top: 0 !important;
+    font-family: 'Sora', sans-serif;
+}
+.chat-widget-container[data-variant="modern"] .chat-powered-by a {
+    color: #a99bd6 !important;
+}
+.chat-widget-container[data-variant="professional"] .chat-powered-by {
+    color: #a3adb8 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 10px !important;
+    border-top: 1px solid #e6e9ee !important;
+}
+.chat-widget-container[data-variant="professional"] .chat-powered-by a {
+    color: #a3adb8 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .chat-powered-by {
+    color: #b5b3aa !important;
+    font-weight: 300 !important;
+    border-top: 0 !important;
+    font-family: 'Work Sans', sans-serif;
+    padding-bottom: 14px !important;
+}
+.chat-widget-container[data-variant="minimalist"] .chat-powered-by a {
+    color: #b5b3aa !important;
+    font-weight: 300 !important;
+}
+
+/* =============================================================
+   VARIANT: CLASSIC
+   Familiar chat pattern — system UI font, filled bubbles, pill input,
+   accent-color launcher and buttons. Some of this cascades from the base
+   widget CSS; this block just aligns the visible defaults with the spec.
+   ============================================================= */
+.chat-widget-container[data-variant="classic"] {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.chat-widget-container[data-variant="classic"] .chat-bubble-button {
+    width: 60px;
+    height: 60px;
+    border-radius: 50% !important;
+    background: var(--primary-color);
+    color: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.chat-widget-container[data-variant="classic"] .chat-bubble-button svg { width: 26px; height: 26px; }
+.chat-widget-container[data-variant="classic"] .chat-window {
+    border-radius: 16px !important;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.28);
+}
+.chat-widget-container[data-variant="classic"] .message-bubble.bot {
+    background: #eef2f6 !important;
+    color: #0f172a !important;
+    border-radius: 14px !important;
+}
+.chat-widget-container[data-variant="classic"] .message-bubble.user {
+    background: var(--primary-color) !important;
+    color: #ffffff !important;
+    border-radius: 14px !important;
+}
+.chat-widget-container[data-variant="classic"] .chat-input-area textarea {
+    background-color: #f1f5f9 !important;
+    border: 1px solid transparent !important;
+    border-radius: 20px !important;
+    color: #0f172a !important;
+}
+.chat-widget-container[data-variant="classic"] .chat-input-area textarea:focus {
+    border-color: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="classic"] .send-icon-button {
+    border-radius: 50% !important;
+}
+.chat-widget-container[data-variant="classic"] .rating-send-button {
+    border-radius: 24px !important;
+}
+.chat-widget-container[data-variant="classic"] .chat-powered-by {
+    color: #94a3b8 !important;
+    font-size: 11px !important;
+    border-top: 0 !important;
+}
+.chat-widget-container[data-variant="classic"] .chat-powered-by a {
+    color: #94a3b8 !important;
+}
+.chat-widget-container[data-variant="classic"] .suggested-message-button {
+    background-color: #ffffff !important;
+    color: var(--primary-color) !important;
+    border: 1px solid var(--primary-color) !important;
+    border-radius: 14px !important;
+}
+.chat-widget-container[data-variant="classic"] .suggested-message-button:hover {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+    border-color: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="classic"] .chat-messages {
+    background-color: #ffffff !important;
+}
+
+/* =============================================================
+   TEASER (mini-welcome-bubble) — per-variant styling.
+   Base CSS drives it from --welcome-bubble-color which every variant
+   overrides here so the teaser matches the variant's visual world.
+   ============================================================= */
+/* Classic — white with light border and a small tail pointing at the launcher.
+   Extra 6px pushed off the launcher to make room for the ::after tail diamond
+   that sticks 6px below the teaser's bottom edge. */
+.chat-widget-container[data-variant="classic"] .mini-welcome-bubble {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px !important;
+    font-weight: 500;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+    min-width: 160px;
+    padding: 10px 30px 10px 14px;
+    bottom: calc(100% + 14px) !important;
+}
+.chat-widget-container[data-variant="classic"] .mini-welcome-bubble::after {
+    content: "";
+    position: absolute;
+    bottom: -6px;
+    right: 24px;
+    width: 12px;
+    height: 12px;
+    background: #ffffff;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    transform: rotate(45deg);
+}
+
+/* Modern — white, no border, gradient strip on top, bigger shadow */
+.chat-widget-container[data-variant="modern"] .mini-welcome-bubble {
+    background-color: #ffffff !important;
+    color: #1e1b3a !important;
+    border: 0;
+    border-radius: 16px !important;
+    font-family: 'Sora', sans-serif;
+    font-weight: 600;
+    box-shadow: 0 14px 32px rgba(80, 60, 180, 0.22);
+    padding: 14px 32px 12px 16px;
+    overflow: hidden;
+    min-width: 180px;
+}
+.chat-widget-container[data-variant="modern"] .mini-welcome-bubble::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent-gradient, var(--primary-color));
+}
+
+/* Professional — bordered white with a gold top-rule, sharp corners, no tail */
+.chat-widget-container[data-variant="professional"] .mini-welcome-bubble {
+    background-color: #ffffff !important;
+    color: #0f2540 !important;
+    border: 1px solid #d9dee4;
+    border-top: 2px solid var(--gold-accent, #c9a35c);
+    border-radius: 4px !important;
+    font-weight: 500;
+    box-shadow: 0 6px 14px rgba(15, 37, 64, 0.1);
+    padding: 10px 14px;
+    min-width: 180px;
+}
+
+/* Minimalist — flat white, thin border, no shadow, no tail */
+.chat-widget-container[data-variant="minimalist"] .mini-welcome-bubble {
+    background-color: #ffffff !important;
+    color: #2a2a26 !important;
+    border: 1px solid #e9e7e0;
+    border-radius: 2px !important;
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 400;
+    box-shadow: none;
+    padding: 10px 32px 10px 14px;
+    min-width: 160px;
+}
+
+/* =============================================================
+   TEASER close (×) button — sits top-right inside every teaser.
+   Click dismisses the teaser without opening the chat.
+   ============================================================= */
+.mini-welcome-dismiss {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    border: 0;
+    background: transparent;
+    color: currentColor;
+    opacity: 0.5;
+    cursor: pointer;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 150ms ease, background 150ms ease;
+    padding: 0;
+}
+.mini-welcome-dismiss:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.06);
+}
+.mini-welcome-dismiss svg { width: 12px; height: 12px; stroke-width: 2; }
+
+/* =============================================================
+   HEADER SUBTITLE — spec calls for regular weight (not bold like the
+   title). The subtitle divs live under a wrapping .header-text so
+   they don't inherit the h3's bold weight naturally, but we set it
+   explicitly here to avoid any browser-default variance.
+   ============================================================= */
+.chat-header .header-sub {
+    font-weight: 400;
+}
+
+/* =============================================================
+   TYPING INDICATOR — per-variant motion character.
+   Base is a single generic bounce; each variant overrides for its
+   spec'd rhythm (Classic bounce, Modern bounce+scale, Professional
+   opacity pulse, Minimalist opacity fade).
+   ============================================================= */
+
+/* Classic — bounce (up 4px), 1.2s */
+.chat-widget-container[data-variant="classic"] .typing-indicator .dot {
+    background-color: #94a3b8 !important;
+    animation: optinbotBounceClassic 1.2s infinite !important;
+}
+.chat-widget-container[data-variant="classic"] .typing-indicator .dot:nth-child(2) { animation-delay: 0.15s !important; }
+.chat-widget-container[data-variant="classic"] .typing-indicator .dot:nth-child(3) { animation-delay: 0.3s !important; }
+@keyframes optinbotBounceClassic {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-4px); }
+}
+
+/* Modern — bounce + scale, purple, 1.1s */
+.chat-widget-container[data-variant="modern"] .typing-indicator .dot {
+    background-color: #8a5cff !important;
+    animation: optinbotBounceModern 1.1s infinite !important;
+}
+.chat-widget-container[data-variant="modern"] .typing-indicator .dot:nth-child(2) { animation-delay: 0.15s !important; }
+.chat-widget-container[data-variant="modern"] .typing-indicator .dot:nth-child(3) { animation-delay: 0.3s !important; }
+@keyframes optinbotBounceModern {
+    0%, 60%, 100% { transform: translateY(0) scale(1); }
+    30% { transform: translateY(-5px) scale(1.15); }
+}
+
+/* Professional — opacity pulse (no vertical movement), 1s */
+.chat-widget-container[data-variant="professional"] .typing-indicator .dot {
+    background-color: #5b6673 !important;
+    animation: optinbotPulseProfessional 1s infinite !important;
+    transform: none !important;
+}
+.chat-widget-container[data-variant="professional"] .typing-indicator .dot:nth-child(2) { animation-delay: 0.15s !important; }
+.chat-widget-container[data-variant="professional"] .typing-indicator .dot:nth-child(3) { animation-delay: 0.3s !important; }
+@keyframes optinbotPulseProfessional {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}
+
+/* Minimalist — opacity fade only, sage, 1.3s */
+.chat-widget-container[data-variant="minimalist"] .typing-indicator .dot {
+    background-color: #5c7a63 !important;
+    animation: optinbotFadeMinimalist 1.3s infinite !important;
+    transform: none !important;
+}
+.chat-widget-container[data-variant="minimalist"] .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s !important; }
+.chat-widget-container[data-variant="minimalist"] .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s !important; }
+@keyframes optinbotFadeMinimalist {
+    0%, 100% { opacity: 0.2; }
+    50% { opacity: 1; }
+}
+/* Minimalist's typing indicator: strip the base bubble background
+   (spec says "no bubble container") — just the three dots on white. */
+.chat-widget-container[data-variant="minimalist"] .message.typing-indicator {
+    background-color: transparent !important;
+    padding: 4px 0 !important;
+    border-radius: 0 !important;
+}
+
+/* =============================================================
+   CHAT WINDOW MOTION — Classic override to match spec 200ms ease.
+   Modern, Professional, Minimalist already set their own transitions
+   in the variant blocks above.
+   ============================================================= */
+.chat-widget-container[data-variant="classic"] .chat-window {
+    transition: opacity 200ms ease, transform 200ms ease, visibility 200ms ease;
+}
+
+/* =============================================================
+   BOOKING CARD — per-variant styling.
+   Elements: .booking-card container, .booking-card-title, .booking-date,
+   .booking-time, .booking-input, .booking-summary, .booking-secondary,
+   .booking-confirmation, .booking-loading .dot, .booking-meet-link,
+   .booking-error. (.booking-primary already handled in each variant block.)
+   ============================================================= */
+
+/* Classic — light grey card, pill time slots, accent-color selections. */
+.chat-widget-container[data-variant="classic"] .booking-card {
+    background: #f8fafc !important;
+    border-radius: 14px !important;
+    padding: 14px !important;
+}
+.chat-widget-container[data-variant="classic"] .booking-card-title {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+}
+.chat-widget-container[data-variant="classic"] .booking-date {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+}
+.chat-widget-container[data-variant="classic"] .booking-date.selected {
+    background: var(--primary-color) !important;
+    color: #ffffff !important;
+    border-color: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="classic"] .booking-time {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 20px !important;
+}
+.chat-widget-container[data-variant="classic"] .booking-time:hover {
+    background: var(--primary-color) !important;
+    color: #ffffff !important;
+    border-color: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="classic"] .booking-input {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+}
+.chat-widget-container[data-variant="classic"] .booking-secondary {
+    border-radius: 20px !important;
+    color: #64748b !important;
+    border: 1px solid #e2e8f0 !important;
+}
+.chat-widget-container[data-variant="classic"] .booking-loading .dot {
+    background: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="classic"] .booking-confirmation {
+    background: #ecfdf5 !important;
+    border: 1px solid #a7f3d0 !important;
+    border-radius: 8px !important;
+}
+
+/* Modern — lavender card, gradient selections, springy. */
+.chat-widget-container[data-variant="modern"] .booking-card {
+    background: #faf9ff !important;
+    border-radius: 16px !important;
+    padding: 14px !important;
+    font-family: 'Sora', sans-serif !important;
+}
+.chat-widget-container[data-variant="modern"] .booking-card-title {
+    color: #1e1b3a !important;
+    font-weight: 700 !important;
+}
+.chat-widget-container[data-variant="modern"] .booking-date {
+    background: #ffffff !important;
+    color: #1e1b3a !important;
+    border: 1px solid transparent !important;
+    border-radius: 12px !important;
+    font-family: 'Sora', sans-serif !important;
+}
+.chat-widget-container[data-variant="modern"] .booking-date.selected {
+    background: var(--accent-gradient, var(--primary-color)) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(109, 75, 255, 0.28) !important;
+}
+.chat-widget-container[data-variant="modern"] .booking-time {
+    background: #ffffff !important;
+    color: #1e1b3a !important;
+    border: 1px solid transparent !important;
+    border-radius: 12px !important;
+    font-family: 'Sora', sans-serif !important;
+    font-weight: 500 !important;
+}
+.chat-widget-container[data-variant="modern"] .booking-time:hover {
+    background: var(--accent-gradient, var(--primary-color)) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(109, 75, 255, 0.28) !important;
+}
+.chat-widget-container[data-variant="modern"] .booking-input {
+    border: 1px solid transparent !important;
+    background: #f4f2ff !important;
+    border-radius: 12px !important;
+    font-family: 'Sora', sans-serif !important;
+}
+.chat-widget-container[data-variant="modern"] .booking-input:focus {
+    border-color: rgba(138, 92, 255, 0.35) !important;
+}
+.chat-widget-container[data-variant="modern"] .booking-secondary {
+    border-radius: 22px !important;
+    background: transparent !important;
+    color: #6b6797 !important;
+    border: 1px solid #d9d3f5 !important;
+    font-family: 'Sora', sans-serif !important;
+}
+.chat-widget-container[data-variant="modern"] .booking-loading .dot {
+    background: #8a5cff !important;
+}
+.chat-widget-container[data-variant="modern"] .booking-confirmation {
+    background: #f0edff !important;
+    border: 0 !important;
+    border-radius: 12px !important;
+    color: #1e1b3a !important;
+}
+
+/* Professional — bordered white, navy selections, gold accent. */
+.chat-widget-container[data-variant="professional"] .booking-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e6eb !important;
+    border-radius: 4px !important;
+    padding: 12px !important;
+}
+.chat-widget-container[data-variant="professional"] .booking-card-title {
+    color: #0f2540 !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 12px !important;
+}
+.chat-widget-container[data-variant="professional"] .booking-date {
+    background: #ffffff !important;
+    color: #0f2540 !important;
+    border: 1px solid #e2e6eb !important;
+    border-radius: 3px !important;
+}
+.chat-widget-container[data-variant="professional"] .booking-date.selected {
+    background: var(--primary-color) !important;
+    color: #ffffff !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: inset 0 -2px 0 var(--gold-accent, #c9a35c) !important;
+}
+.chat-widget-container[data-variant="professional"] .booking-time {
+    background: #ffffff !important;
+    color: #0f2540 !important;
+    border: 1px solid #e2e6eb !important;
+    border-radius: 3px !important;
+}
+.chat-widget-container[data-variant="professional"] .booking-time:hover {
+    background: var(--primary-color) !important;
+    color: #ffffff !important;
+    border-color: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="professional"] .booking-input {
+    border: 1px solid #e2e6eb !important;
+    background: #ffffff !important;
+    border-radius: 3px !important;
+}
+.chat-widget-container[data-variant="professional"] .booking-input:focus {
+    border-color: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="professional"] .booking-secondary {
+    border-radius: 3px !important;
+    background: transparent !important;
+    color: #5b6673 !important;
+    border: 1px solid #e2e6eb !important;
+}
+.chat-widget-container[data-variant="professional"] .booking-loading .dot {
+    background: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="professional"] .booking-confirmation {
+    background: #f8fafc !important;
+    border: 1px solid #e2e6eb !important;
+    border-radius: 3px !important;
+    color: #0f2540 !important;
+    border-top: 2px solid var(--gold-accent, #c9a35c) !important;
+}
+
+/* Minimalist — transparent card, hairline borders, sage selections.
+   Generous internal padding so the transparent card doesn't crowd the
+   chat panel edges (there's no fill to soften the boundary). */
+.chat-widget-container[data-variant="minimalist"] .booking-card {
+    background: transparent !important;
+    border-top: 1px solid #e9e7e0 !important;
+    border-bottom: 1px solid #e9e7e0 !important;
+    border-radius: 0 !important;
+    padding: 18px 18px 20px !important;
+    font-family: 'Work Sans', sans-serif !important;
+    font-weight: 300 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .booking-card-title {
+    color: #2a2a26 !important;
+    font-weight: 400 !important;
+    font-family: 'Work Sans', sans-serif !important;
+}
+.chat-widget-container[data-variant="minimalist"] .booking-date {
+    background: transparent !important;
+    color: #2a2a26 !important;
+    border: 0 !important;
+    border-bottom: 1.5px solid transparent !important;
+    border-radius: 0 !important;
+    font-family: 'Work Sans', sans-serif !important;
+    font-weight: 300 !important;
+    padding: 6px 8px 8px !important;
+}
+.chat-widget-container[data-variant="minimalist"] .booking-date.selected {
+    background: transparent !important;
+    color: var(--primary-color) !important;
+    border-bottom-color: var(--primary-color) !important;
+    font-weight: 500 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .booking-time {
+    background: #ffffff !important;
+    color: #2a2a26 !important;
+    border: 1px solid #d5d3cd !important;
+    border-radius: 2px !important;
+    font-family: 'Work Sans', sans-serif !important;
+    font-weight: 300 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .booking-time:hover {
+    background: #f3f6f2 !important;
+    color: #2a2a26 !important;
+    border-color: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="minimalist"] .booking-input {
+    border: 0 !important;
+    border-bottom: 1px solid #d5d3cd !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 8px 4px !important;
+    font-family: 'Work Sans', sans-serif !important;
+    font-weight: 300 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .booking-input:focus {
+    border-bottom-color: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="minimalist"] .booking-secondary {
+    border-radius: 2px !important;
+    background: transparent !important;
+    color: #2a2a26 !important;
+    border: 1px solid #d5d3cd !important;
+    font-weight: 400 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .booking-loading .dot {
+    background: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="minimalist"] .booking-confirmation {
+    background: transparent !important;
+    border: 0 !important;
+    border-top: 1px solid #e9e7e0 !important;
+    border-radius: 0 !important;
+    color: #2a2a26 !important;
+    padding: 12px 4px !important;
+}
+
+/* =============================================================
+   RATING CARD — per-variant container, thumbs, textarea, links,
+   inline footer, nudge, acknowledgment.
+   ============================================================= */
+
+/* Classic — white card, standard overlay */
+.chat-widget-container[data-variant="classic"] .rating-card {
+    border-radius: 16px !important;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18) !important;
+}
+.chat-widget-container[data-variant="classic"] .rating-thumb.up.selected {
+    background: #ecfdf5 !important;
+    border-color: #10b981 !important;
+}
+.chat-widget-container[data-variant="classic"] .rating-thumb.down.selected {
+    background: #fef2f2 !important;
+    border-color: #ef4444 !important;
+}
+.chat-widget-container[data-variant="classic"] .rating-textarea {
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+/* Modern — softer overlay w/ blur, gradient send */
+.chat-widget-container[data-variant="modern"] .rating-card-overlay {
+    background: rgba(46, 26, 110, 0.45) !important;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+.chat-widget-container[data-variant="modern"] .rating-card {
+    border-radius: 22px !important;
+    box-shadow: 0 10px 30px rgba(80, 60, 180, 0.35) !important;
+    font-family: 'Sora', sans-serif !important;
+}
+.chat-widget-container[data-variant="modern"] .rating-card-title {
+    font-family: 'Sora', sans-serif !important;
+    font-weight: 700 !important;
+}
+.chat-widget-container[data-variant="modern"] .rating-thumb {
+    border-radius: 14px !important;
+}
+.chat-widget-container[data-variant="modern"] .rating-thumb.up.selected {
+    background: #f0edff !important;
+    border-color: #8a5cff !important;
+}
+.chat-widget-container[data-variant="modern"] .rating-thumb.down.selected {
+    background: #fee2e2 !important;
+    border-color: #ef4444 !important;
+}
+.chat-widget-container[data-variant="modern"] .rating-textarea {
+    border-radius: 14px !important;
+    border: 1px solid transparent !important;
+    background: #f4f2ff !important;
+    font-family: 'Sora', sans-serif !important;
+}
+.chat-widget-container[data-variant="modern"] .rating-textarea:focus {
+    border-color: rgba(138, 92, 255, 0.35) !important;
+}
+.chat-widget-container[data-variant="modern"] .rating-link-button {
+    font-family: 'Sora', sans-serif !important;
+}
+
+/* Professional — bordered card, navy overlay */
+.chat-widget-container[data-variant="professional"] .rating-card-overlay {
+    background: rgba(15, 37, 64, 0.35) !important;
+}
+.chat-widget-container[data-variant="professional"] .rating-card {
+    border-radius: 6px !important;
+    border: 1px solid #d9dee4 !important;
+    box-shadow: 0 8px 22px rgba(15, 37, 64, 0.2) !important;
+}
+.chat-widget-container[data-variant="professional"] .rating-card-title {
+    color: #0f2540 !important;
+    font-weight: 600 !important;
+}
+.chat-widget-container[data-variant="professional"] .rating-thumb {
+    border-radius: 3px !important;
+    border: 1px solid #e2e6eb !important;
+}
+.chat-widget-container[data-variant="professional"] .rating-thumb.up.selected {
+    background: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: #ffffff !important;
+}
+.chat-widget-container[data-variant="professional"] .rating-thumb.down.selected {
+    background: #7f1d1d !important;
+    border-color: #7f1d1d !important;
+    color: #ffffff !important;
+}
+.chat-widget-container[data-variant="professional"] .rating-textarea {
+    border-radius: 3px !important;
+    border: 1px solid #e2e6eb !important;
+}
+
+/* Minimalist — flat white, no shadow, outlined controls.
+   Overlay covers the whole chat window (no header to leave uncovered
+   — base's top:60px reserves space for header, which Minimalist skips). */
+.chat-widget-container[data-variant="minimalist"] .rating-card-overlay {
+    background: rgba(42, 42, 38, 0.28) !important;
+    top: 0 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .rating-card {
+    border-radius: 2px !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12) !important;
+    font-family: 'Work Sans', sans-serif !important;
+    font-weight: 300 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .rating-card-title {
+    color: #2a2a26 !important;
+    font-weight: 400 !important;
+    font-family: 'Work Sans', sans-serif !important;
+}
+.chat-widget-container[data-variant="minimalist"] .rating-thumb {
+    border-radius: 2px !important;
+    border: 1px solid #d5d3cd !important;
+}
+.chat-widget-container[data-variant="minimalist"] .rating-thumb.up.selected,
+.chat-widget-container[data-variant="minimalist"] .rating-thumb.down.selected {
+    background: #f3f6f2 !important;
+    border-color: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="minimalist"] .rating-textarea {
+    border-radius: 2px !important;
+    border: 1px solid #d5d3cd !important;
+    font-family: 'Work Sans', sans-serif !important;
+    font-weight: 300 !important;
+}
+.chat-widget-container[data-variant="minimalist"] .rating-textarea:focus {
+    border-color: var(--primary-color) !important;
+}
+.chat-widget-container[data-variant="minimalist"] .rating-link-button {
+    font-family: 'Work Sans', sans-serif !important;
+    font-weight: 400 !important;
+}
+
+/* Rating nudge + acknowledgment — variant sync */
+.chat-widget-container[data-variant="modern"] .rating-nudge {
+    font-family: 'Sora', sans-serif !important;
+}
+.chat-widget-container[data-variant="professional"] .rating-nudge {
+    border-radius: 3px !important;
+}
+.chat-widget-container[data-variant="minimalist"] .rating-nudge {
+    font-family: 'Work Sans', sans-serif !important;
+    font-weight: 400 !important;
+}
+
+/* =============================================================
+   INLINE RATING FOOTER — the persistent "Was this helpful?" strip
+   above the input in inline mode. Per-variant treatment mirrors the
+   variant's rating-card identity but at footer scale.
+   ============================================================= */
+.chat-widget-container[data-variant="classic"] .inline-rating-footer {
+    background: #f8fafc !important;
+    border-top: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+}
+.chat-widget-container[data-variant="modern"] .inline-rating-footer {
+    background: #f4f2ff !important;
+    border-top: 0 !important;
+    color: #1e1b3a !important;
+    font-family: 'Sora', sans-serif !important;
+}
+.chat-widget-container[data-variant="professional"] .inline-rating-footer {
+    background: #ffffff !important;
+    border-top: 1px solid #e2e6eb !important;
+    color: #0f2540 !important;
+    font-size: 12px !important;
+}
+.chat-widget-container[data-variant="minimalist"] .inline-rating-footer {
+    background: #ffffff !important;
+    border-top: 1px solid #e9e7e0 !important;
+    color: #2a2a26 !important;
+    font-family: 'Work Sans', sans-serif !important;
+    font-weight: 300 !important;
 }

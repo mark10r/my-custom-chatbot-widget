@@ -3,6 +3,61 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { defaultConfig } from './main.tsx'; // Import from your existing file
 import BookingCard, { SCHEDULE_MEETING_TOKEN } from './BookingCard';
+import {
+    VARIANT_CAPABILITIES,
+    VARIANT_DEFAULTS,
+    normalizeVariant,
+    type WidgetVariant,
+    type VariantStyleConfig,
+} from './widget-styles';
+import {
+    CloseIcon,
+    SendIcon,
+    ChatBubbleIcon,
+    SparkIcon,
+    ThumbUpIcon,
+    ThumbDownIcon,
+} from './icons';
+import { makeT, resolveLocale, type WidgetLocaleSetting } from './i18n';
+
+// Derive initials from a bot name (fallback for avatar when no image is uploaded).
+const getInitials = (name: string): string => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/).slice(0, 2);
+    const initials = parts.map(p => p[0]?.toUpperCase() ?? '').join('');
+    return initials || '?';
+};
+
+// Renders the correct launcher content per variant.
+const LauncherContent: React.FC<{
+    variant: WidgetVariant;
+    launcherLabel?: string;
+    launcherMonogram?: string;
+}> = ({ variant, launcherLabel, launcherMonogram }) => {
+    const cap = VARIANT_CAPABILITIES[variant];
+    const defaults = VARIANT_DEFAULTS[variant].style;
+    switch (cap.launcher) {
+        case 'circle-icon':
+            return <ChatBubbleIcon />;
+        case 'pill-icon-label':
+            return (
+                <>
+                    <SparkIcon />
+                    <span className="chat-launcher-label">{launcherLabel || defaults.launcherLabel || 'Ask us'}</span>
+                </>
+            );
+        case 'square-monogram':
+            return <span className="chat-launcher-monogram">{launcherMonogram || defaults.launcherMonogram || 'B&C'}</span>;
+        case 'circle-dots':
+            return (
+                <>
+                    <span className="chat-launcher-dot" />
+                    <span className="chat-launcher-dot" />
+                    <span className="chat-launcher-dot" />
+                </>
+            );
+    }
+};
 
 // Bot output is authored by an LLM whose prompt can be influenced by any
 // visitor message. Sanitize before feeding to dangerouslySetInnerHTML so a
@@ -71,8 +126,16 @@ const savePersistedSession = (chatbotId: string, data: Omit<PersistedSession, 'l
 // (shadow-write for idle finalizer) or at end-of-conversation. Bot messages
 // go through the same HTML strip as the beacon path.
 type TranscriptMessage = { type: 'user' | 'bot' | 'rating'; text: string; rating?: 'up' | 'down'; feedback?: string };
+// Bot messages live in state as rendered HTML (marked.parse output). This
+// strip is what turns them back into transcript-safe text. Anchors get
+// preserved as `[text](url)` markdown BEFORE the blanket tag strip runs —
+// otherwise `<a href="URL">TEXT</a>` collapses to just `TEXT` and the URL
+// vanishes from Supabase, breaking the audit trail for "did the bot send X?"
+// (see 2026-09 investigation into missing link_clicks for AppFolio bot).
 const stripTranscriptHtml = (html: string) =>
-    html.replace(/<[^>]*>/g, '')
+    html
+        .replace(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)')
+        .replace(/<[^>]*>/g, '')
         .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(parseInt(code, 10)))
         .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"').replace(/&apos;/g, "'").trim();
@@ -127,6 +190,22 @@ interface ChatWidgetProps {
     isPreview?: boolean;
     displayMode?: 'bubble' | 'inline';
     showInlineHeader?: boolean;
+    variant?: WidgetVariant;
+    variantStyle?: VariantStyleConfig;
+    // Visitor-facing UI language. 'auto' derives from navigator.language.
+    // Independent of the operator's dashboard locale.
+    locale?: WidgetLocaleSetting;
+    // Dashboard preview drives this via postMessage to toggle Open/Closed
+    // without unmounting the widget. `null` means the internal toggle wins.
+    forceOpen?: 'open' | 'closed' | null;
+    // Dashboard preview signals when it's simulating a mobile phone frame so
+    // the widget re-enables its full-screen mobile behavior in-frame. `null`
+    // (or absent) = production. `'desktop'` = suppress mobile-full-screen.
+    previewDevice?: 'desktop' | 'mobile' | null;
+    // Bumped by dashboard when a "Test" button in Launch Behavior is clicked.
+    // On change, widget closes and resets its auto-open / welcome-bubble
+    // timers so the configured behaviors re-fire and can be observed.
+    launchDemoNonce?: number;
 }
 
 type SuggestedMessage = {
@@ -143,10 +222,74 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     membershipStatus,
     isPreview = false,
     displayMode = 'bubble',
-    showInlineHeader: _showInlineHeader = true
+    showInlineHeader: _showInlineHeader = true,
+    variant: rawVariant,
+    variantStyle = {},
+    locale = 'auto',
+    forceOpen = null,
+    previewDevice = null,
+    launchDemoNonce = 0,
 }) => {
     const finalTheme = { ...defaultConfig.theme, ...theme };
     const isInline = displayMode === 'inline';
+    const variant: WidgetVariant = normalizeVariant(rawVariant);
+    const capability = VARIANT_CAPABILITIES[variant];
+    const resolvedLocale = resolveLocale(locale);
+    const t = makeT(resolvedLocale);
+    const styleDefaults = VARIANT_DEFAULTS[variant].style;
+    // Merge user overrides on top of variant defaults for every style field.
+    const resolvedStyle: Required<Pick<VariantStyleConfig, 'gradientStop' | 'launcherLabel' | 'showOnlineStatus' | 'goldAccentColor' | 'launcherMonogram' | 'headerHoursLine' | 'headerSubtitle'>> = {
+        gradientStop: variantStyle.gradientStop || styleDefaults.gradientStop || '',
+        launcherLabel: variantStyle.launcherLabel || styleDefaults.launcherLabel || '',
+        showOnlineStatus: variantStyle.showOnlineStatus ?? styleDefaults.showOnlineStatus ?? false,
+        goldAccentColor: variantStyle.goldAccentColor || styleDefaults.goldAccentColor || '',
+        launcherMonogram: variantStyle.launcherMonogram || styleDefaults.launcherMonogram || '',
+        headerHoursLine: variantStyle.headerHoursLine || styleDefaults.headerHoursLine || '',
+        headerSubtitle: variantStyle.headerSubtitle || styleDefaults.headerSubtitle || '',
+    };
+
+    // Localized fallbacks for operator-authored fields with English defaults.
+    // If the operator hasn't customized (empty OR still matches a known English
+    // default baked into the widget/dashboard/DB), swap in the visitor-locale
+    // version. Anything the operator explicitly typed — even one word different
+    // — is respected as-is. Multiple defaults per field because the same field
+    // has slightly different English defaults across layers (Supabase column
+    // default, dashboard `initialTheme`, widget `defaultConfig.theme`).
+    const EN_DEFAULTS = {
+        headerTitle: ['Chat with our AI Assistant', 'AI Assistant'],
+        headerSubtitle: ['Usually replies in a few minutes'],
+        inputPlaceholder: ['Type your message...'],
+        welcomeMessage: ['Hello! How can I help you today?', 'Hello! How can I help you? 👋'],
+        welcomeBubbleText: ['Hey there! 👋 Have a question?', 'Need help?'],
+        // Array match: signature = suggestedMessages.join('|'). Compare vs.
+        // each known default array's signature.
+        suggestedMessages: [
+            ['What does your company do?', 'Is there a free trial available?', 'What are your pricing plans?', 'Talk to a human'].join('|'),
+            ['What are your pricing plans?', 'How does the chatbot work?', 'Can I customize the widget?', 'Talk to a human'].join('|'),
+        ],
+    };
+    const isUntouched = (value: string | undefined, defaults: string[]): boolean =>
+        !value || defaults.includes(value);
+
+    const localizedHeaderTitle = isUntouched(finalTheme.headerTitle, EN_DEFAULTS.headerTitle)
+        ? t('default_header_title')
+        : finalTheme.headerTitle;
+    const localizedHeaderSubtitle = isUntouched(resolvedStyle.headerSubtitle, EN_DEFAULTS.headerSubtitle)
+        ? t('default_header_subtitle')
+        : resolvedStyle.headerSubtitle;
+    const localizedInputPlaceholder = isUntouched(finalTheme.inputPlaceholder, EN_DEFAULTS.inputPlaceholder)
+        ? t('default_input_placeholder')
+        : finalTheme.inputPlaceholder;
+    const localizedWelcomeMessage = isUntouched(finalTheme.welcomeMessage, EN_DEFAULTS.welcomeMessage)
+        ? t('default_welcome_message')
+        : finalTheme.welcomeMessage;
+    const localizedWelcomeBubbleText = isUntouched(finalTheme.welcomeBubbleText, EN_DEFAULTS.welcomeBubbleText)
+        ? t('default_welcome_bubble_text')
+        : finalTheme.welcomeBubbleText;
+    const rawSuggested: string[] = finalTheme.suggestedMessages ?? [];
+    const localizedSuggested: string[] = EN_DEFAULTS.suggestedMessages.includes(rawSuggested.join('|'))
+        ? [t('default_suggested_1'), t('default_suggested_2'), t('default_suggested_3'), t('default_suggested_4')]
+        : rawSuggested;
 
     // Restore any persisted session (skipped in preview to avoid dashboard state leakage)
     const restored = React.useMemo(() => (isPreview ? null : loadPersistedSession(chatbotId)), [chatbotId, isPreview]);
@@ -156,6 +299,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     // welcome-message effect + any isOpen-gated logic fires on mount instead
     // of waiting for a bubble click (which doesn't exist in inline).
     const [isOpen, setIsOpen] = useState(isInline);
+
+    // Dashboard preview drives Open/Closed via postMessage → forceOpen prop.
+    // When set, override the internal open state; when null (production), the
+    // widget's own toggle handlers own it.
+    React.useEffect(() => {
+        if (forceOpen === 'open') setIsOpen(true);
+        else if (forceOpen === 'closed') setIsOpen(false);
+    }, [forceOpen]);
     const [messages, setMessages] = useState<{ type: 'user' | 'bot' | 'rating'; text: string; timestamp: Date; rating?: 'up' | 'down'; feedback?: string; showBookingCard?: boolean }[]>(
         // Any showBookingCard flag from a prior session is intentionally dropped —
         // the confirmation is captured in the synthetic bot message we append
@@ -168,8 +319,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         // an open event) and depended on isOpen state timing.
         () => {
             if (restored && restored.messages.length > 0) return restored.messages.map(m => ({ ...m, timestamp: new Date(m.timestamp), showBookingCard: undefined }));
-            const welcomeText = ({ ...defaultConfig.theme, ...theme }).welcomeMessage;
-            if (welcomeText && welcomeText.trim()) return [{ type: 'bot' as const, text: welcomeText, timestamp: new Date() }];
+            const seedTheme = { ...defaultConfig.theme, ...theme };
+            const welcomeText = localizedWelcomeMessage;
+            if (seedTheme.showWelcomeMessage !== false && welcomeText && welcomeText.trim()) {
+                return [{ type: 'bot' as const, text: welcomeText, timestamp: new Date() }];
+            }
             return [];
         }
     );
@@ -190,11 +344,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     const scrollIntervalRef = useRef<number | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null); 
     const originalTitle = useRef(document.title);
+    // Landing page URL captured at widget mount. Held stable for the whole
+    // conversation so client-side SPA navigation after the chat starts
+    // doesn't rewrite where the conversation originally happened. Sent in
+    // every /api/chat payload so n8n can persist it on the conversation row.
+    const sourceUrlRef = useRef<string>(typeof window !== 'undefined' ? window.location.href : '');
     const miniBubbleTriggeredRef = useRef(false);
     const autoOpenTriggeredRef = useRef(false);
 
     const [visibleSuggestedMessages, setVisibleSuggestedMessages] = useState<SuggestedMessage[]>(
-        (finalTheme.suggestedMessages || []).map((msg, index) => ({
+        localizedSuggested.map((msg, index) => ({
             id: index,
             text: msg,
             status: 'visible',
@@ -224,7 +383,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }, [isOpen, isInline]);
 
     // --- AUDIO & TAB NOTIFICATIONS ---
+    // Minimalist deliberately ships silent — spec calls for maximum restraint,
+    // and a notification chirp fights that. Every other variant pings.
     const playNotification = () => {
+        if (!capability.playsSound) return;
         try {
             const audio = new Audio(NOTIFICATION_SOUND_B64);
             // play() returns a Promise. iOS (and desktop Safari/Chrome under
@@ -263,10 +425,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                         clientId: stored.clientId,
                         chatbotId: stored.chatbotId,
                         sessionId: stored.sessionId,
+                        sourceUrl: stored.sourceUrl ?? null,
                         event: stored.event,
-                        // Rating/feedback survive in old payloads (backward-compat if present)
+                        // Rating/feedback + locale survive in old payloads (backward-compat if present)
                         rating: stored.rating ?? null,
                         feedback: stored.feedback ?? null,
+                        locale: stored.locale ?? null,
                     }),
                 }).then(res => { if (res.ok) localStorage.removeItem(key); }).catch(() => {});
             } catch {
@@ -314,17 +478,22 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }, [messages, hasRated, sessionId, chatbotId, isPreview]);
 
     // --- EFFECT: THEME & VISIBILITY ---
+    // Primary color falls back to the variant's default accent when the customer
+    // hasn't set one. That way each variant renders in its own visual world by
+    // default (Modern purple, Professional navy, Minimalist sage) instead of
+    // inheriting a shared dev-default teal.
     useEffect(() => {
         const container = document.getElementById('optinbot-chatbot-container');
         if (!container) return;
-        container.style.setProperty('--primary-color', finalTheme.primaryColor);
-        container.style.setProperty('--user-bubble-color', finalTheme.userBubbleColor);
-        container.style.setProperty('--bot-bubble-color', finalTheme.botBubbleColor);
-        container.style.setProperty('--chat-window-bg-color', finalTheme.chatWindowBgColor);
+        const resolvedPrimary = finalTheme.primaryColor || VARIANT_DEFAULTS[variant].accentColor;
+        container.style.setProperty('--primary-color', resolvedPrimary);
+        if (finalTheme.userBubbleColor) container.style.setProperty('--user-bubble-color', finalTheme.userBubbleColor);
+        if (finalTheme.botBubbleColor) container.style.setProperty('--bot-bubble-color', finalTheme.botBubbleColor);
+        if (finalTheme.chatWindowBgColor) container.style.setProperty('--chat-window-bg-color', finalTheme.chatWindowBgColor);
         container.style.setProperty('--input-placeholder-color', finalTheme.inputPlaceholder);
-        container.style.setProperty('--welcome-bubble-color', finalTheme.welcomeBubbleColor || finalTheme.primaryColor);
+        container.style.setProperty('--welcome-bubble-color', finalTheme.welcomeBubbleColor || resolvedPrimary);
         container.style.setProperty('--welcome-bubble-text-color', finalTheme.welcomeBubbleTextColor || '#ffffff');
-    }, [finalTheme]);
+    }, [finalTheme, variant]);
 
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -340,12 +509,53 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
     // --- EFFECT: AUTO-ENGAGEMENT LOGIC ---
     useEffect(() => {
-        if (isOpen && messages.length === 0 && finalTheme.welcomeMessage) {
-            setMessages([{ type: 'bot', text: finalTheme.welcomeMessage, timestamp: new Date() }]);
+        if (isOpen && messages.length === 0 && finalTheme.showWelcomeMessage !== false && localizedWelcomeMessage) {
+            setMessages([{ type: 'bot', text: localizedWelcomeMessage, timestamp: new Date() }]);
             playNotification();
             triggerTabNotification();
         }
-    }, [isOpen, messages.length, finalTheme.welcomeMessage]);
+    }, [isOpen, messages.length, localizedWelcomeMessage, finalTheme.showWelcomeMessage]);
+
+    // --- EFFECT: PREVIEW-MODE LIVE SYNC ---
+    // In preview / live-test mode, the dashboard streams config edits via
+    // CONFIG_UPDATE postMessage. Welcome message + suggested replies are
+    // seeded via useState initializers that only run once, so live edits
+    // don't visually update unless we resync here. Kept preview-only so
+    // real visitors never see their conversation rewritten under them.
+    useEffect(() => {
+        if (!isPreview) return;
+        // Only rewrite the welcome bubble if the visitor hasn't interacted:
+        // exactly one bot message (the seeded welcome) and no user turn yet.
+        // When showWelcomeMessage is toggled OFF in the configurator, clear the
+        // seeded bubble so the preview reflects the visitor experience.
+        //
+        // The "empty → seed" case is intentionally NOT handled here: the auto-
+        // engagement effect below owns first-seed (with sound + tab flash).
+        // Doing it in both places causes a race and a duplicate notification.
+        setMessages(prev => {
+            const onlyWelcome = prev.length === 1 && prev[0].type === 'bot' && !prev[0].showBookingCard;
+            const shouldShow = finalTheme.showWelcomeMessage !== false && !!localizedWelcomeMessage;
+            if (!onlyWelcome) return prev;
+            if (!shouldShow) return [];
+            if (prev[0].text === localizedWelcomeMessage) return prev;
+            return [{ ...prev[0], text: localizedWelcomeMessage }];
+        });
+    }, [isPreview, localizedWelcomeMessage, finalTheme.showWelcomeMessage]);
+
+    useEffect(() => {
+        if (!isPreview) return;
+        // Reset chip list to match the current theme. In preview, the
+        // suggested replies field is being edited live; visitors clicking
+        // a chip in a real session isn't a concern here.
+        const next = localizedSuggested.map((msg, index) => ({
+            id: index,
+            text: msg,
+            status: 'visible' as const,
+        }));
+        setVisibleSuggestedMessages(next);
+        // Serialize deps to keep effect stable across identity changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isPreview, localizedSuggested.join('|')]);
 
     useEffect(() => {
         if (finalTheme.openAfterDelay && finalTheme.openDelaySeconds !== undefined && !isOpen && !autoOpenTriggeredRef.current) {
@@ -405,6 +615,20 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         if (isOpen && showMiniBubble) setShowMiniBubble(false);
     }, [finalTheme.showWelcomeBubble, finalTheme.welcomeBubbleDelaySeconds, isOpen, showMiniBubble]);
 
+    // --- EFFECT: LAUNCH DEMO RESET (preview only) ---
+    // Dashboard bumps launchDemoNonce when the user clicks a "Test" button in
+    // the Launch Behavior group. We close the widget and clear both trigger
+    // refs so the configured timers re-fire on the very next render, letting
+    // the user observe auto-open / welcome bubble live.
+    const initialLaunchDemoNonceRef = useRef(launchDemoNonce);
+    useEffect(() => {
+        if (launchDemoNonce === initialLaunchDemoNonceRef.current) return;
+        setIsOpen(false);
+        setShowMiniBubble(false);
+        autoOpenTriggeredRef.current = false;
+        miniBubbleTriggeredRef.current = false;
+    }, [launchDemoNonce]);
+
     // --- EFFECT: PAGE LEAVE AUTOMATION ---
     // Only fire if the visitor has sent NEW user messages since the last successful
     // transcript send. Prevents duplicate n8n executions on same-session reopens.
@@ -420,9 +644,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     clientId: clientId,
                     chatbotId: chatbotId,
                     sessionId: sessionId,
+                    sourceUrl: sourceUrlRef.current,
                     event: 'conversation_ended',
                     rating: ratingMsg?.rating ?? null,
                     feedback: ratingMsg?.feedback ?? null,
+                    locale: resolvedLocale,
                 };
                 try {
                     localStorage.setItem(`optinbot_pending_end_${sessionId}`, JSON.stringify(payload));
@@ -544,6 +770,73 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         return () => container.removeEventListener('click', handleClick);
     }, [chatbotId, sessionId, isPreview]);
 
+    // --- DEV-ONLY: URL query flags to trigger cards for local visual testing.
+    //   ?showBooking=1 → inject a bot message with an inline booking picker
+    //                    (availability API is mocked so real dates render).
+    //   ?showRating=1  → open the rating card immediately.
+    //   ?showTyping=1  → force the typing indicator to stay visible.
+    // Guarded by isPreview so this never triggers in production.
+    useEffect(() => {
+        if (!isPreview || !sessionId) return;
+        const params = new URLSearchParams(window.location.search);
+        const wantsBooking = params.get('showBooking') === '1';
+        const wantsRating = params.get('showRating') === '1';
+        const wantsTyping = params.get('showTyping') === '1';
+
+        if (wantsBooking && !messages.some(m => m.showBookingCard)) {
+            // Mock /api/booking/availability so the picker renders real dates
+            // instead of hitting the real backend (which needs a configured
+            // Google Calendar).
+            const originalFetch = window.fetch;
+            window.fetch = (async (url: RequestInfo | URL, opts?: RequestInit) => {
+                const urlStr = typeof url === 'string' ? url : url.toString();
+                if (urlStr.includes('/api/booking/availability')) {
+                    const today = new Date();
+                    const dates = [];
+                    for (let i = 0; i < 7; i++) {
+                        const d = new Date(today);
+                        d.setDate(today.getDate() + i);
+                        const dateStr = d.toISOString().slice(0, 10);
+                        const slots = [9, 10, 11, 13, 14, 15, 16].map(hr => {
+                            const start = new Date(d);
+                            start.setHours(hr, 0, 0, 0);
+                            const end = new Date(start);
+                            end.setMinutes(30);
+                            return { start: start.toISOString(), end: end.toISOString() };
+                        });
+                        dates.push({ date: dateStr, slots });
+                    }
+                    return new Response(
+                        JSON.stringify({ timezone: 'America/New_York', dates }),
+                        { status: 200, headers: { 'Content-Type': 'application/json' } }
+                    );
+                }
+                return originalFetch(url, opts);
+            }) as typeof fetch;
+            setIsOpen(true);
+            setMessages(prev => [
+                ...prev,
+                { type: 'user' as const, text: "I'd like to book a call. Alex Chen, alex@example.com", timestamp: new Date() },
+                { type: 'bot' as const, text: 'Sure — pick a time that works for you.', timestamp: new Date(), showBookingCard: true },
+            ]);
+        }
+
+        if (wantsRating) {
+            setIsOpen(true);
+            setMessages(prev => prev.some(m => m.type === 'user') ? prev : [
+                ...prev,
+                { type: 'user' as const, text: 'Test question to unlock rating flow', timestamp: new Date() },
+            ]);
+            setShowRatingCard(true);
+        }
+
+        if (wantsTyping) {
+            setIsOpen(true);
+            setIsLoading(true);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isPreview, sessionId]);
+
     // --- AUTO-EXPANDING TEXTAREA LOGIC ---
     useEffect(() => {
         if (textareaRef.current) {
@@ -601,6 +894,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
         setIsLoading(true);
 
+        // No send-guard in preview: the widget stays fully functional so
+        // customers can actually talk to the real bot from inside the
+        // dashboard preview. Session persistence, analytics and the pagehide
+        // beacon are still gated by isPreview elsewhere, so this only lifts
+        // the /api/chat send, not the write side.
+
         // Running transcript through this user message (bot response arrives
         // later and is included on the NEXT send). Attached to every POST so
         // the server-side idle-timeout finalizer always has a fresh snapshot
@@ -611,7 +910,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             const response = await fetch('https://app.optinbot.io/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chatInput: userMessage.text, clientId, chatbotId, sessionId, transcriptSoFar }),
+                body: JSON.stringify({ chatInput: userMessage.text, clientId, chatbotId, sessionId, sourceUrl: sourceUrlRef.current, transcriptSoFar, isPreview, locale: resolvedLocale }),
             });
             const data = await response.json();
             const rawResponse = data.output || 'Sorry, I could not process your request.';
@@ -641,7 +940,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             triggerTabNotification();
         } catch (error) {
             console.error(error);
-            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: 'Oops! I had trouble connecting.', timestamp: new Date() }]);
+            setMessages((prevMessages) => [...prevMessages, { type: 'bot', text: t('connection_error'), timestamp: new Date() }]);
         } finally {
             setIsLoading(false);
         }
@@ -732,56 +1031,124 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     // In inline mode the chat is always visible — no toggle, no bubble button.
     const chatWindowOpen = isInline || isOpen;
 
+    // Prefer the uploaded avatar when the variant supports it AND the user
+    // uploaded one; fall back to initials from the bot / header title.
+    const avatarUrl = capability.controls.avatar ? finalTheme.headerIconUrl : '';
+    const avatarInitials = getInitials(localizedHeaderTitle);
+
+    // Modern uses a live gradient built from the primary color + variantStyle.gradientStop.
+    // Every other variant leaves this null and CSS uses the accent color directly.
+    const gradientCssValue = variant === 'modern' && resolvedStyle.gradientStop
+        ? `linear-gradient(135deg, var(--primary-color), ${resolvedStyle.gradientStop})`
+        : null;
+
     return (
-        <div className={`chat-widget-container ${isInline ? 'inline' : finalTheme.buttonPosition} ${!isInline && isOpen ? 'mobile-open' : ''}`}>
+        <div
+            className={`chat-widget-container ${isInline ? 'inline' : finalTheme.buttonPosition} ${!isInline && isOpen && (!isPreview || previewDevice === 'mobile') ? 'mobile-open' : ''}`}
+            data-variant={variant}
+            style={{
+                ...(resolvedStyle.gradientStop ? { ['--gradient-stop' as string]: resolvedStyle.gradientStop } : {}),
+                ...(resolvedStyle.goldAccentColor ? { ['--gold-accent' as string]: resolvedStyle.goldAccentColor } : {}),
+                ...(gradientCssValue ? { ['--accent-gradient' as string]: gradientCssValue } : {}),
+            }}
+        >
             {!isInline && showMiniBubble && (
                 <div className="mini-welcome-bubble" onClick={toggleChat}>
-                    <span>{finalTheme.welcomeBubbleText}</span>
+                    <span>{localizedWelcomeBubbleText}</span>
+                    <button
+                        className="mini-welcome-dismiss"
+                        aria-label={t('dismiss')}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowMiniBubble(false);
+                            // Mark auto-shown teaser as user-dismissed so it doesn't
+                            // re-appear this session.
+                            miniBubbleTriggeredRef.current = true;
+                        }}
+                    >
+                        <CloseIcon />
+                    </button>
                 </div>
             )}
 
             {!isInline && (
-                <button className="chat-bubble-button" onClick={toggleChat}>
-                    <img src={finalTheme.customIconUrl} alt="Chat Icon" className="chat-icon" />
+                <button className="chat-bubble-button" onClick={toggleChat} aria-label={t('open_chat')}>
+                    <LauncherContent
+                        variant={variant}
+                        launcherLabel={resolvedStyle.launcherLabel}
+                        launcherMonogram={resolvedStyle.launcherMonogram}
+                    />
                 </button>
             )}
 
-            <div className={`chat-window ${chatWindowOpen ? 'is-open' : 'is-closed'}`} style={{ borderColor: 'var(--primary-color)' }}>
-                <div className="chat-header">
-                    <div className="header-content" style={{ display: 'flex', alignItems: 'center' }}>
-                        {finalTheme.headerIconUrl && (
-                            <img
-                                src={finalTheme.headerIconUrl}
-                                className="header-avatar"
-                                alt="Assistant"
-                                style={{ width: '30px', height: '30px', borderRadius: '50%', marginRight: '10px', backgroundColor: 'white' }}
-                            />
-                        )}
-                        <div className="header-text">
-                            <h3 style={{ margin: 0, color: 'white', fontSize: '16px', fontWeight: 'bold' }}>
-                                {finalTheme.headerTitle}
-                                {isPreview && <span style={{ fontSize: '10px', opacity: 0.8, marginLeft: '5px' }}>(Preview)</span>}
-                            </h3>
-                            {finalTheme.showOnlineStatus && (
-                                <div style={{ fontSize: '12px', display: 'flex', alignItems: 'center', opacity: 0.9, color: 'white' }}>
-                                    <span style={{ width: '8px', height: '8px', backgroundColor: '#4CAF50', borderRadius: '50%', marginRight: '5px' }}></span>
-                                    Online
+            <div className={`chat-window ${chatWindowOpen ? 'is-open' : 'is-closed'}`}>
+                {capability.hasHeader && (
+                    <div className="chat-header">
+                        <div className="header-content" style={{ display: 'flex', alignItems: 'center' }}>
+                            {capability.controls.avatar && (
+                                avatarUrl ? (
+                                    <img
+                                        src={avatarUrl}
+                                        className="header-avatar"
+                                        alt=""
+                                        style={{ width: '30px', height: '30px', borderRadius: '50%', marginRight: '10px', backgroundColor: 'white' }}
+                                    />
+                                ) : (
+                                    <div className="header-avatar header-avatar-initials" aria-hidden="true">
+                                        {avatarInitials}
+                                    </div>
+                                )
+                            )}
+                            {variant === 'professional' && (
+                                <div className="header-avatar header-avatar-monogram" aria-hidden="true">
+                                    {resolvedStyle.launcherMonogram}
                                 </div>
                             )}
+                            <div className="header-text">
+                                <h3 style={{ margin: 0, color: 'white', fontSize: '16px', fontWeight: 'bold' }}>
+                                    {localizedHeaderTitle}
+                                </h3>
+                                {capability.subtitle === 'online-pulse' && resolvedStyle.showOnlineStatus && (
+                                    <div className="header-sub header-sub-online" style={{ fontSize: '12px', display: 'flex', alignItems: 'center', opacity: 0.9, color: 'white' }}>
+                                        <span className="header-online-dot"></span>
+                                        Online
+                                    </div>
+                                )}
+                                {capability.subtitle === 'text' && variant === 'classic' && localizedHeaderSubtitle && (
+                                    <div className="header-sub header-sub-text" style={{ fontSize: '12px', opacity: 0.9, color: 'white' }}>
+                                        {localizedHeaderSubtitle}
+                                    </div>
+                                )}
+                                {capability.subtitle === 'text' && variant === 'professional' && resolvedStyle.headerHoursLine && (
+                                    <div className="header-sub header-sub-text" style={{ fontSize: '12px', opacity: 0.9, color: 'white' }}>
+                                        {resolvedStyle.headerHoursLine}
+                                    </div>
+                                )}
+                            </div>
                         </div>
+                        {!isInline && (
+                            <button
+                                className="close-button"
+                                onClick={handleCloseAttempt}
+                                aria-label={t('close_chat')}
+                                title={t('close')}
+                            >
+                                <CloseIcon />
+                            </button>
+                        )}
                     </div>
-                    {!isInline && (
-                        <button
-                            className="close-button"
-                            onClick={handleCloseAttempt}
-                            style={{ color: 'white' }}
-                            aria-label="Close chat"
-                            title="Close"
-                        >
-                            &times;
-                        </button>
-                    )}
-                </div>
+                )}
+                {/* Minimalist has no header — the close × floats over the message area instead. */}
+                {!capability.hasHeader && !isInline && (
+                    <button
+                        className="close-button close-button-floating"
+                        onClick={handleCloseAttempt}
+                        aria-label={t('close_chat')}
+                        title={t('close')}
+                    >
+                        <CloseIcon />
+                    </button>
+                )}
 
                 <div className="chat-messages" ref={messagesContainerRef}>
                     {messages.map((msg, index) => {
@@ -831,12 +1198,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                                     sessionId={sessionId}
                                                     prefillName={prefillName}
                                                     prefillEmail={prefillEmail}
+                                                    t={t}
+                                                    locale={resolvedLocale}
                                                     onBooked={({ slot, meetLink, timezone, email }) => {
-                                                        const dt = new Intl.DateTimeFormat(undefined, { timeZone: timezone, weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(slot.start));
-                                                        const meetLine = meetLink ? ` <a href="${meetLink}" target="_blank" rel="noopener noreferrer">Join Google Meet</a>` : '';
+                                                        const dtLocale = resolvedLocale === 'es' ? 'es-ES' : undefined;
+                                                        const dt = new Intl.DateTimeFormat(dtLocale, { timeZone: timezone, weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(slot.start));
+                                                        const meetLine = meetLink ? ` <a href="${meetLink}" target="_blank" rel="noopener noreferrer">${t('booking_success_meet_link')}</a>` : '';
                                                         setMessages(prev => [...prev, {
                                                             type: 'bot',
-                                                            text: `Great — you're all set for <strong>${dt}</strong>. I've sent an invite to ${email}.${meetLine}`,
+                                                            text: `${t('booking_success_message', { when: dt, email })}${meetLine}`,
                                                             timestamp: new Date(),
                                                         }]);
                                                     }}
@@ -865,7 +1235,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                         if (ratingMsg?.rating) {
                             return (
                                 <div className={`rating-acknowledgment ${ratingMsg.rating}`}>
-                                    You rated this chat {ratingMsg.rating === 'up' ? '👍' : '👎'}
+                                    {t('you_rated_this_chat')} {ratingMsg.rating === 'up' ? <ThumbUpIcon width={14} height={14} /> : <ThumbDownIcon width={14} height={14} />}
                                 </div>
                             );
                         }
@@ -878,7 +1248,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                     className="rating-nudge"
                                     onClick={() => setShowRatingCard(true)}
                                 >
-                                    Rate this chat
+                                    {t('rate_this_chat')}
                                 </button>
                             );
                         }
@@ -888,23 +1258,23 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 </div>
 
                 {showRatingCard && (
-                    <div className="rating-card-overlay" role="dialog" aria-label="Rate this conversation">
+                    <div className="rating-card-overlay" role="dialog" aria-label={t('rate_conversation')}>
                         <div className="rating-card">
-                            <div className="rating-card-title">How was your chat?</div>
+                            <div className="rating-card-title">{t('how_was_chat')}</div>
                             <div className="rating-thumbs">
                                 <button
                                     className={`rating-thumb up ${selectedRating === 'up' ? 'selected' : ''}`}
                                     onClick={() => setSelectedRating('up')}
-                                    aria-label="Thumbs up"
+                                    aria-label={t('thumbs_up')}
                                 >
-                                    👍
+                                    <ThumbUpIcon />
                                 </button>
                                 <button
                                     className={`rating-thumb down ${selectedRating === 'down' ? 'selected' : ''}`}
                                     onClick={() => setSelectedRating('down')}
-                                    aria-label="Thumbs down"
+                                    aria-label={t('thumbs_down')}
                                 >
-                                    👎
+                                    <ThumbDownIcon />
                                 </button>
                             </div>
                             {selectedRating && (
@@ -912,7 +1282,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                     className="rating-textarea"
                                     value={feedbackText}
                                     onChange={(e) => setFeedbackText(e.target.value.slice(0, 500))}
-                                    placeholder={selectedRating === 'up' ? 'What did you love? (optional)' : 'What went wrong? (optional)'}
+                                    placeholder={selectedRating === 'up' ? t('feedback_up_placeholder') : t('feedback_down_placeholder')}
                                     rows={3}
                                 />
                             )}
@@ -921,20 +1291,20 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                 onClick={sendRating}
                                 disabled={!selectedRating}
                             >
-                                Send Feedback
+                                {t('send_feedback')}
                             </button>
                             <div className="rating-secondary-actions">
                                 <button
                                     className="rating-link-button"
                                     onClick={() => setShowRatingCard(false)}
                                 >
-                                    Keep chatting
+                                    {t('keep_chatting')}
                                 </button>
                                 <button
                                     className="rating-link-button"
                                     onClick={skipRating}
                                 >
-                                    {isInline ? 'Skip' : 'Skip & close'}
+                                    {isInline ? t('skip') : t('skip_and_close')}
                                 </button>
                             </div>
                         </div>
@@ -974,7 +1344,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     if (ratingMsg?.rating) {
                         return (
                             <div className={`inline-rating-footer inline-rating-acknowledgment ${ratingMsg.rating}`}>
-                                You rated this chat {ratingMsg.rating === 'up' ? '👍' : '👎'}
+                                {t('you_rated_this_chat')} {ratingMsg.rating === 'up' ? <ThumbUpIcon width={14} height={14} /> : <ThumbDownIcon width={14} height={14} />}
                             </div>
                         );
                     }
@@ -985,32 +1355,32 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                 className="inline-rating-footer inline-rating-nudge"
                                 onClick={() => setShowRatingCard(true)}
                             >
-                                Rate this chat
+                                {t('rate_this_chat')}
                             </button>
                         );
                     }
                     // Default: the "Was this helpful?" prompt
                     return (
-                        <div className="inline-rating-footer" role="group" aria-label="Rate this chat">
-                            <span className="inline-rating-label">Was this helpful?</span>
+                        <div className="inline-rating-footer" role="group" aria-label={t('rate_this_chat')}>
+                            <span className="inline-rating-label">{t('was_this_helpful')}</span>
                             <button
                                 className="inline-rating-thumb"
-                                aria-label="Thumbs up"
+                                aria-label={t('thumbs_up')}
                                 onClick={() => { setSelectedRating('up'); setShowRatingCard(true); }}
                             >
-                                👍
+                                <ThumbUpIcon width={16} height={16} />
                             </button>
                             <button
                                 className="inline-rating-thumb"
-                                aria-label="Thumbs down"
+                                aria-label={t('thumbs_down')}
                                 onClick={() => { setSelectedRating('down'); setShowRatingCard(true); }}
                             >
-                                👎
+                                <ThumbDownIcon width={16} height={16} />
                             </button>
                             <button
                                 className="inline-rating-dismiss"
-                                aria-label="Dismiss rating"
-                                title="Dismiss"
+                                aria-label={t('dismiss_rating')}
+                                title={t('dismiss')}
                                 onClick={() => setHasRated(true)}
                             >
                                 ×
@@ -1026,13 +1396,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyPress}
-                        placeholder={finalTheme.inputPlaceholder}
+                        placeholder={localizedInputPlaceholder}
                     />
                     <button
                         onClick={() => handleSendMessage()}
                         className="send-icon-button"
+                        aria-label={t('send_message')}
                     >
-                        <img src="https://res.cloudinary.com/dlasog0p4/image/upload/v1756573647/send-svgrepo-com_2_i9iest.svg" alt="Send" />
+                        <SendIcon />
                     </button>
                 </div>
                
