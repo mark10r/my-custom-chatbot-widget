@@ -648,7 +648,7 @@
 }
 
 .suggested-messages-area {
-    padding: 4px 14px 0;
+    padding: 4px 14px 8px;
     display: flex;
     flex-direction: column;
     gap: 8px;
